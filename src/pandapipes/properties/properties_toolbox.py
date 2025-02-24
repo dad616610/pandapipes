@@ -167,16 +167,16 @@ def get_branch_real_density(fluid, node_pit, branch_pit):
     t_from = node_pit[from_nodes, TINIT]
     t_to = branch_pit[:, TOUTINIT]
     if fluid.is_gas:
-        from_p = node_pit[from_nodes, PINIT] + node_pit[from_nodes, PAMB]
+        p_from = node_pit[from_nodes, PINIT] + node_pit[from_nodes, PAMB]
         to_nodes = branch_pit[:, TO_NODE].astype(np.int32)
-        to_p = node_pit[to_nodes, PINIT] + node_pit[to_nodes, PAMB]
-        normal_rho = fluid.get_density(NORMAL_TEMPERATURE)
-        from_rho = normal_rho * get_rho_normfactor(fluid, from_p, t_from)
-        to_rho = normal_rho * get_rho_normfactor(fluid, to_p, t_to)
+        p_to = node_pit[to_nodes, PINIT] + node_pit[to_nodes, PAMB]
+        rho_normal = fluid.get_density(NORMAL_TEMPERATURE)
+        rho_from = rho_normal * get_rho_normfactor(fluid, p_from, t_from)
+        rho_to = rho_normal * get_rho_normfactor(fluid, p_to, t_to)
     else:
-        from_rho = fluid.get_density(t_from)
-        to_rho = fluid.get_density(t_to)
-    rho = (from_rho + to_rho) / 2
+        rho_from = fluid.get_density(t_from)
+        rho_to = fluid.get_density(t_to)
+    rho = (rho_from + rho_to) / 2
     return rho
 
 def get_branch_real_eta(fluid, node_pit, branch_pit):
