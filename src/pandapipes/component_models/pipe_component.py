@@ -15,7 +15,8 @@ from pandapipes.idx_branch import FROM_NODE, TO_NODE, LENGTH, D, AREA, K, \
 from pandapipes.idx_node import PINIT, TINIT as TINIT_NODE, PAMB
 from pandapipes.pf.pipeflow_setup import get_fluid, get_lookup, get_net_option
 from pandapipes.pf.result_extraction import extract_branch_results_with_internals, \
-    extract_branch_results_without_internals
+    extract_branch_results_without_internals, get_branch_results_gas
+from pandapipes.properties.properties_toolbox import get_v_normfactor
 
 try:
     import pandaplan.core.pplog as logging
@@ -211,21 +212,15 @@ class Pipe(BranchWInternalsComponent):
             if gas_mode:
                 from_nodes = pipe_pit[m_nodes, FROM_NODE].astype(np.int32)
                 to_nodes = pipe_pit[m_nodes, TO_NODE].astype(np.int32)
+
                 p_from = node_pit[from_nodes, PAMB] + node_pit[from_nodes, PINIT]
                 p_to = node_pit[to_nodes, PAMB] + node_pit[to_nodes, PINIT]
                 p_mean = np.where(p_from == p_to, p_from,
                                   2 / 3 * (p_from ** 3 - p_to ** 3) / (p_from ** 2 - p_to ** 2))
-                numerator = NORMAL_PRESSURE * node_pit[m_nodes, TINIT_NODE]
-                normfactor_mean = numerator * fluid.get_property("compressibility", p_mean) \
-                    / (p_mean * NORMAL_TEMPERATURE)
-                normfactor_from = numerator * fluid.get_property("compressibility", p_from) \
-                    / (p_from * NORMAL_TEMPERATURE)
-                normfactor_to = numerator * fluid.get_property("compressibility", p_to) \
-                    / (p_to * NORMAL_TEMPERATURE)
-
-                v_pipe_data_mean = v_pipe_data * normfactor_mean
-                v_pipe_data_from = v_pipe_data * normfactor_from
-                v_pipe_data_to = v_pipe_data * normfactor_to
+                t = node_pit[m_nodes, TINIT_NODE]
+                v_pipe_data_mean = v_pipe_data * get_v_normfactor(fluid, p_mean, t)
+                v_pipe_data_from = v_pipe_data * get_v_normfactor(fluid, p_from, t)
+                v_pipe_data_to = v_pipe_data * get_v_normfactor(fluid, p_to, t)
 
                 pipe_results["VINIT_FROM"][:, 0] = v_pipe_idx
                 pipe_results["VINIT_FROM"][:, 1] = v_pipe_data_from

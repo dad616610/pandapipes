@@ -7,7 +7,7 @@ from pandapipes.idx_node import TABLE_IDX as TABLE_IDX_NODE, PINIT, PAMB, TINIT 
 from pandapipes.pf.internals_toolbox import _sum_by_group
 from pandapipes.pf.pipeflow_setup import get_table_number, get_lookup, get_net_option
 from pandapipes.properties.fluids import get_fluid
-from pandapipes.properties.properties_toolbox import get_branch_real_density
+from pandapipes.properties.properties_toolbox import get_branch_real_density, get_v_normfactor, get_v_normfactor_numba
 
 try:
     from numba import jit
@@ -84,21 +84,18 @@ def get_branch_results_gas(net, branch_pit, node_pit, from_nodes, to_nodes, v_mp
     fluid = get_fluid(net)
     t_from = node_pit[from_nodes, TINIT_NODE]
     t_to = branch_pit[:, TOUTINIT]
-    tm = (t_from + t_to) / 2
-    numerator_from = NORMAL_PRESSURE * t_from / NORMAL_TEMPERATURE
-    numerator_to = NORMAL_PRESSURE * t_to / NORMAL_TEMPERATURE
-    numerator = NORMAL_PRESSURE * tm / NORMAL_TEMPERATURE
+    t_mean = (t_from + t_to) / 2
 
-    normfactor_from = numerator_from * fluid.get_property("compressibility", p_abs_from) / p_abs_from
-    normfactor_to = numerator_to * fluid.get_property("compressibility", p_abs_to) / p_abs_to
-    normfactor_mean = numerator * fluid.get_property("compressibility", p_abs_mean) / p_abs_mean
+    v_normfactor_from = get_v_normfactor(fluid, p_abs_from, t_from)
+    v_normfactor_to = get_v_normfactor(fluid, p_abs_to, t_to)
+    v_normfactor_mean = get_v_normfactor(fluid, p_abs_mean, t_mean)
 
-    v_gas_from = v_mps * normfactor_from
-    v_gas_to = v_mps * normfactor_to
-    v_gas_mean = v_mps * normfactor_mean
+    v_gas_from = v_mps * v_normfactor_from
+    v_gas_to = v_mps * v_normfactor_to
+    v_gas_mean = v_mps * v_normfactor_mean
 
-    return v_gas_from, v_gas_to, v_gas_mean, p_abs_from, p_abs_to, p_abs_mean, normfactor_from, \
-        normfactor_to, normfactor_mean
+    return v_gas_from, v_gas_to, v_gas_mean, p_abs_from, p_abs_to, p_abs_mean, v_normfactor_from, \
+        v_normfactor_to, v_normfactor_mean
 
 
 def get_branch_results_gas_numba(net, branch_pit, node_pit, from_nodes, to_nodes, v_mps, p_from,
@@ -107,12 +104,13 @@ def get_branch_results_gas_numba(net, branch_pit, node_pit, from_nodes, to_nodes
                                                            p_from, p_to)
 
     fluid = get_fluid(net)
-    comp_from = fluid.get_property("compressibility", p_abs_from)
-    comp_to = fluid.get_property("compressibility", p_abs_to)
-    comp_mean = fluid.get_property("compressibility", p_abs_mean)
+    comp_norm = fluid.get_compressibility(NORMAL_PRESSURE)
+    comp_from = fluid.get_compressibility(p_abs_from)
+    comp_to = fluid.get_compressibility(p_abs_to)
+    comp_mean = fluid.get_compressibility(p_abs_mean)
 
     v_gas_from, v_gas_to, v_gas_mean, normfactor_from, normfactor_to, normfactor_mean = \
-        get_gas_vel_numba(node_pit, branch_pit, comp_from, comp_to, comp_mean, p_abs_from, p_abs_to,
+        get_gas_vel_numba(node_pit, branch_pit, comp_norm, comp_from, comp_to, comp_mean, p_abs_from, p_abs_to,
                           p_abs_mean, v_mps)
 
     return v_gas_from, v_gas_to, v_gas_mean, p_abs_from, p_abs_to, p_abs_mean, normfactor_from, \
@@ -136,20 +134,19 @@ def get_pressures_numba(node_pit, from_nodes, to_nodes, v_mps, p_from, p_to):
 
 
 @jit(nopython=True)
-def get_gas_vel_numba(node_pit, branch_pit, comp_from, comp_to, comp_mean, p_abs_from, p_abs_to, p_abs_mean, v_mps):
+def get_gas_vel_numba(node_pit, branch_pit, comp_norm, comp_from, comp_to, comp_mean, p_abs_from, p_abs_to, p_abs_mean, v_mps):
     v_gas_from, v_gas_to, v_gas_mean, normfactor_from, normfactor_to, normfactor_mean = \
         [np.empty_like(v_mps) for _ in range(6)]
     from_nodes = branch_pit[:, FROM_NODE].astype(np.int32)
     for i in range(len(v_mps)):
         t_from = node_pit[from_nodes[i], TINIT_NODE]
         t_to = branch_pit[i, TOUTINIT]
-        tm = (t_from + t_to) / 2
-        numerator_from = np.divide(NORMAL_PRESSURE * t_from, NORMAL_TEMPERATURE)
-        numerator_to = np.divide(NORMAL_PRESSURE * t_to, NORMAL_TEMPERATURE)
-        numerator = np.divide(NORMAL_PRESSURE * tm, NORMAL_TEMPERATURE)
-        normfactor_from[i] = np.divide(numerator_from * comp_from[i], p_abs_from[i])
-        normfactor_to[i] = np.divide(numerator_to * comp_to[i], p_abs_to[i])
-        normfactor_mean[i] = np.divide(numerator * comp_mean[i], p_abs_mean[i])
+        t_mean = (t_from + t_to) / 2
+
+        normfactor_from[i] = get_v_normfactor_numba(p_abs_from[i], t_from, comp_norm, comp_from)
+        normfactor_to[i] = get_v_normfactor_numba(p_abs_to[i], t_to, comp_norm, comp_to)
+        normfactor_mean[i] = get_v_normfactor_numba(p_abs_mean[i], t_mean, comp_norm, comp_mean)
+
         v_gas_from[i] = v_mps[i] * normfactor_from[i]
         v_gas_to[i] = v_mps[i] * normfactor_to[i]
         v_gas_mean[i] = v_mps[i] * normfactor_mean[i]

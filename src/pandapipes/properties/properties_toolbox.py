@@ -148,6 +148,19 @@ def calculate_mass_fraction_from_molar_fraction(component_molar_proportions, com
     com_array[:, 3] = com_array[:, 2] / com_array[:, 2].sum()
     return com_array[:, 3]
 
+def get_rho_normfactor_numba(p, t, z_n, z):
+    return NORMAL_TEMPERATURE * p * z_n / (t * NORMAL_PRESSURE * z)
+
+def get_v_normfactor_numba(p, t, z_n, z):
+    return 1 / get_rho_normfactor_numba(p, t, z_n, z)
+
+def get_rho_normfactor(fluid, p, t):
+    z_n = fluid.get_compressibility(NORMAL_PRESSURE)
+    z = fluid.get_compressibility(p)
+    return get_rho_normfactor_numba(p, t, z_n ,z)
+
+def get_v_normfactor(fluid, p, t):
+    return 1 / get_rho_normfactor(fluid, p, t)
 
 def get_branch_real_density(fluid, node_pit, branch_pit):
     from_nodes = get_from_nodes_corrected(branch_pit)
@@ -158,10 +171,8 @@ def get_branch_real_density(fluid, node_pit, branch_pit):
         to_nodes = branch_pit[:, TO_NODE].astype(np.int32)
         to_p = node_pit[to_nodes, PINIT] + node_pit[to_nodes, PAMB]
         normal_rho = fluid.get_density(NORMAL_TEMPERATURE)
-        from_rho = np.divide(normal_rho * NORMAL_TEMPERATURE * from_p,
-                             t_from * NORMAL_PRESSURE * fluid.get_compressibility(from_p))
-        to_rho = np.divide(normal_rho * NORMAL_TEMPERATURE * to_p,
-                           t_to * NORMAL_PRESSURE * fluid.get_compressibility(to_p))
+        from_rho = normal_rho * get_rho_normfactor(fluid, from_p, t_from)
+        to_rho = normal_rho * get_rho_normfactor(fluid, to_p, t_to)
     else:
         from_rho = fluid.get_density(t_from)
         to_rho = fluid.get_density(t_to)
