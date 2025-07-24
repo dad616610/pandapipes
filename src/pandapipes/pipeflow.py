@@ -70,17 +70,56 @@ def pipeflow(
     calc_compression_power: bool = _MISSING,
     transient: bool = _MISSING,
     **kwargs,
-    ):
+    ) -> None:
     """
-    The main method used to start the solver to calculate the velocity, pressure and temperature\
-    distribution for a given net. Different options can be entered for \\**kwargs, which control\
-    the solver behaviour (see function :func:`init_options` for more information).
-
-    :param net: The pandapipes net for which to perform the pipeflow
+    Initializes physical/mathematical constants and solver options for a pandapipes network.
+    
+    :param net: The pandapipesNet for which to initialize options
     :type net: pandapipesNet
-    :param sol_vec: Initializes the start values for the heating network calculation
-    :type sol_vec: numpy.ndarray, default None
-    :param kwargs: A list of options controlling the solver behaviour
+    :param sol_vec:
+    :type sol_vec:
+    :param mode: Calculation mode ("hydraulics", "heat", "sequential", or "bidirectional"), defaults to "hydraulics"
+    :type mode: str, optional
+    :param friction_model: Friction model ("nikuradse" or "colebrook"), defaults to "nikuradse"
+    :type friction_model: str, optional
+    :param iter: Maximum iterations before termination. Overrides max_iter_* parameters, defaults to 10
+    :type iter: int, optional
+    :param max_iter_hyd: Maximum hydraulic iterations before termination, defaults to 10
+    :type max_iter_hyd: int, optional
+    :param max_iter_therm: Maximum thermal iterations before termination, defaults to 10
+    :type max_iter_therm: int, optional
+    :param max_iter_bidirect: Maximum thermal iterations before termination, defaults to 10
+    :type max_iter_bidirect: int, optional
+    :param max_iter_colebrook: Maximum thermal iterations before termination, defaults to 10
+    :type max_iter_colebrook: int, optional
+    :param tol_p: Relative pressure tolerance for convergence, defaults to 1e-5
+    :type tol_p: float, optional
+    :param tol_m: Relative velocity tolerance for convergence, defaults to 1e-5
+    :type tol_m: float, optional
+    :param tol_T: Relative temperature tolerance for convergence, defaults to 1e-3
+    :type tol_T: float, optional
+    :param tol_res: Relative residual tolerance for convergence, defaults to 1e-3
+    :type tol_res: float, optional
+    :param ambient_temperature: Ambient temperature [K] for barometric formula, defaults to 293.15
+    :type ambient_temperature: float, optional
+    :param alpha: Newton iteration damping factor, defaults to 1
+    :type alpha: float, optional
+    :param nonlinear_method: Damping adjustment method ("constant" or "automatic"), defaults to "constant"
+    :type nonlinear_method: str, optional
+    :param use_numba: Enable numba acceleration for calculations, defaults to True
+    :type use_numba: bool, optional
+    :param only_update_hydraulic_matrix: Reuse system matrix pattern for speed optimization, defaults to False
+    :type only_update_hydraulic_matrix: bool, optional
+    :param reuse_internal_data:
+    :type reuse_internal_data: bool, optional
+    :param check_connectivity: Verify network connectivity during initialization, defaults to True
+    :type check_connectivity: bool, optional
+    :param quit_on_inconsistency_connectivity: Raise errors on connectivity inconsistencies, defaults to False
+    :type quit_on_inconsistency_connectivity: bool, optional
+    :param calc_compression_power:
+    :type calc_compression_power: bool, optional
+    :param transient:
+    :type transient: bool, optional
     :return: No output
 
     :Example:
