@@ -18,7 +18,8 @@ from pandapipes.pf.pipeflow_setup import (
     check_infeed_number, PipeflowNotConverged
 )
 from pandapipes.pf.result_extraction import extract_all_results, extract_results_active_pit
-
+from pandapipes.pandapipes_net import pandapipesNet
+from typing import Literal
 try:
     import pandaplan.core.pplog as logging
 except ImportError:
@@ -40,8 +41,36 @@ def set_logger_level_pipeflow(level):
     """
     logger.setLevel(level)
 
+# Sentinel value for unprovided parameters
+_MISSING = object()
 
-def pipeflow(net, sol_vec=None, **kwargs):
+def pipeflow(
+    net: pandapipesNet,
+    sol_vec = None,
+    *,
+    mode: Literal["hydraulics", "heat", "sequential", "bidirectional", "all"] = _MISSING,
+    friction_model: Literal["nikuradse", "colebrook", "swamee-jain"] = _MISSING,
+    iter: int = _MISSING,
+    max_iter_hyd: int = _MISSING,
+    max_iter_therm: int = _MISSING,
+    max_iter_bidirect: int = _MISSING,
+    max_iter_colebrook: int = _MISSING,
+    tol_p: float = _MISSING,
+    tol_m: float = _MISSING,
+    tol_T: float = _MISSING,
+    tol_res: float = _MISSING,
+    ambient_temperature: float = _MISSING,
+    alpha: float = _MISSING,
+    nonlinear_method: Literal["constant", "automatic"] = _MISSING,
+    use_numba: bool = _MISSING,
+    only_update_hydraulic_matrix: bool = _MISSING,
+    reuse_internal_data: bool = _MISSING,
+    check_connectivity: bool = _MISSING,
+    quit_on_inconsistency_connectivity: bool = _MISSING,
+    calc_compression_power: bool = _MISSING,
+    transient: bool = _MISSING,
+    **kwargs,
+    ):
     """
     The main method used to start the solver to calculate the velocity, pressure and temperature\
     distribution for a given net. Different options can be entered for \\**kwargs, which control\
@@ -60,10 +89,16 @@ def pipeflow(net, sol_vec=None, **kwargs):
     """
     # Inputs & initialization of variables
     # ------------------------------------------------------------------------------------------
-
+    # flatten `locals()` dict (`kwargs` is stored as dict inside `locals()`)
+    all_args = {**locals(), **kwargs}
+    keys_to_exclude = {"net", "sol_vec", "kwargs"}
+    for k in keys_to_exclude:
+        all_args.pop(k, None)
+    # filter out parameters that use the _MISSING sentinel value
+    # (indicates the user did not provide a value)
+    user_provided_args = {k: v for k, v in all_args.items() if v is not _MISSING}
     # Init physical constants and options
-    init_options(net, **kwargs)
-    calculation_mode = get_net_option(net, "mode")
+    init_options(net, **user_provided_args)
 
     # init result tables
     net.converged = False
