@@ -41,13 +41,18 @@ def set_logger_level_pipeflow(level):
     """
     logger.setLevel(level)
 
-class _MISSING_CLS:
+class _MISSING_TYPE:
+    """Sentinel type indicating an unprovided parameter (internal use)."""
 
     def __repr__(self):
+        """repr of the sentinel.
+
+        Used for the docs rendering.
+        """
         return "_MISSING"
+
 # Sentinel value for unprovided parameters
-_MISSING = _MISSING_CLS()
-# _MISSING = object()
+_MISSING = _MISSING_TYPE()
 
 def pipeflow(
     net: pandapipesNet,
@@ -78,7 +83,7 @@ def pipeflow(
     ) -> None:
     """
     Initializes physical/mathematical constants and solver options for a pandapipes network.
-    
+
     :param net: The pandapipesNet for which to initialize options
     :type net: pandapipesNet
     :param sol_vec:
@@ -129,6 +134,25 @@ def pipeflow(
 
     :Example:
         >>> pipeflow(net, mode="hydraulics")
+
+    .. note:: **Parameter Hierarchy and Rationale for _MISSING**
+
+        Parameters follow a 3-layer priority system:
+
+        1. **Explicit arguments** (highest priority)
+        2. **External parameters** (from ``user_pf_options``)
+        3. **Internal defaults** (lowest priority)
+
+        The ``_MISSING`` sentinel enables this hierarchy by:
+
+        - Distinguishing between explicitly passed values and omitted parameters
+        - Preventing hardcoded defaults from overriding external parameters
+
+        Without ``_MISSING``, default values like ``mode="hydraulics"`` would:
+
+        - Always override external parameters
+        - Make external parameter sources irrelevant
+        - Break the intended priority hierarchy
 
     """
     # Inputs & initialization of variables
