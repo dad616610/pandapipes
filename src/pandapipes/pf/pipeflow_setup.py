@@ -216,7 +216,7 @@ def _init_options(net, **kwargs):
     :return: No output
 
     :Example:
-        >>> init_options(net)
+        >>> _init_options(net)
 
     """
     user_pf_options = net.get("user_pf_options", {})

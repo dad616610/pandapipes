@@ -41,8 +41,13 @@ def set_logger_level_pipeflow(level):
     """
     logger.setLevel(level)
 
+class _MISSING_CLS:
+
+    def __repr__(self):
+        return "_MISSING"
 # Sentinel value for unprovided parameters
-_MISSING = object()
+_MISSING = _MISSING_CLS()
+# _MISSING = object()
 
 def pipeflow(
     net: pandapipesNet,

@@ -40,7 +40,7 @@ Initialize Option Function
 The final option setup is generated and saved under net["_options"] by the following internal
 function:
 
-.. autofunction:: pandapipes.pf.pipeflow_setup.init_options
+.. autofunction:: pandapipes.pf.pipeflow_setup._init_options
 
 
 .. _user_options:
