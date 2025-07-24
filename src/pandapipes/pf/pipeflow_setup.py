@@ -206,7 +206,7 @@ def set_user_pf_options(net, reset=False, **kwargs):
     net.user_pf_options.update(kwargs)
 
 
-def init_options(net, **kwargs):
+def _init_options(net, **kwargs):
     """
     Initializes physical and mathematical constants included in pandapipes. In addition, options
     for the nonlinear and time-dependent solver are also set.
