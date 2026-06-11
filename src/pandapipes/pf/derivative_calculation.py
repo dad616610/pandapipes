@@ -59,8 +59,19 @@ def calculate_derivatives_hydraulic(net,
     # Darcy Friction factor: lambda
     lambda_, re = calc_lambda(branch_pit[:, MDOTINIT], eta, branch_pit[:, D], branch_pit[:, K], gas_mode,
         friction_model, branch_pit[:, LENGTH], options, branch_pit[:, AREA])
-    der_lambda = calc_der_lambda(branch_pit[:, MDOTINIT], eta, branch_pit[:, D], branch_pit[:, K], friction_model,
-                                 lambda_, branch_pit[:, AREA], re, branch_pit[:, LENGTH])
+    mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
+    der_lambda = np.zeros_like(re)
+    der_lambda[mask] = calc_der_lambda(
+        branch_pit[mask, MDOTINIT],
+        eta[mask],
+        branch_pit[mask, D],
+        branch_pit[mask, K],
+        friction_model,
+        lambda_[mask],
+        branch_pit[mask, AREA],
+        re[mask],
+    )
+
     branch_pit[:, RE] = re
     branch_pit[:, LAMBDA] = lambda_
 
@@ -211,7 +222,7 @@ def calc_lambda(m, eta, d, k, gas_mode, friction_model, lengths, options, area):
     return res, re
 
 
-def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re, lengths):
+def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re):
     """
     Function calculates the derivative of lambda with respect to v. Turbulence is calculated based
     on Nikuradse. This should not be a problem as the pressure loss term will equal zero
@@ -239,30 +250,29 @@ def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re, lengths
     df_dm = np.zeros_like(m)
     df_dlambda = np.zeros_like(m)
     lambda_der = np.zeros_like(m)
-    mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
 
     if friction_model == "colebrook":
-        b_term[mask] = (2.51 * eta[mask] * area[mask] / (m[mask] * d[mask] * np.sqrt(lambda_pipe[mask])) + k[mask] / (
-                    3.71 * d[mask]))
+        b_term = (2.51 * eta * area / (m * d * np.sqrt(lambda_pipe)) + k / (
+                    3.71 * d))
 
-        df_dm[mask] = -2 * 2.51 * eta[mask] * area[mask] / (m[mask] ** 2 * np.sqrt(lambda_pipe[mask]) * d[mask]) / (
-                    np.log(10) * b_term[mask])
+        df_dm = -2 * 2.51 * eta * area / (m ** 2 * np.sqrt(lambda_pipe) * d) / (
+                    np.log(10) * b_term)
 
-        df_dlambda[mask] = -0.5 * lambda_pipe[mask] ** (-3 / 2) - (2.51 * eta[mask] * area[mask] / (d[mask] * m[mask])) * \
-                          lambda_pipe[mask] ** (-3 / 2) / (np.log(10) * b_term[mask])
+        df_dlambda = -0.5 * lambda_pipe ** (-3 / 2) - (2.51 * eta * area / (d * m)) * \
+                          lambda_pipe ** (-3 / 2) / (np.log(10) * b_term)
 
-        lambda_der[mask] = df_dm[mask] / df_dlambda[mask]
+        lambda_der = df_dm / df_dlambda
 
         return lambda_der
     elif friction_model == "swamee-jain":
-        param = (k[mask] / (3.7 * d[mask]) + 5.74 * ((eta[mask] * area[mask]) / (np.abs(m[mask]) * d[mask])) ** 0.9)
+        param = (k / (3.7 * d) + 5.74 * ((eta * area) / (np.abs(m) * d)) ** 0.9)
         # 0.5 / (log(10) * log(param)^3 * param) * 5.166 * abs(eta)^0.9  / (abs(rho * d)^0.9
         # * abs(v_corr)^1.9)
-        lambda_der[mask] = 0.5 * np.log(10) ** 2 / (np.log(param) ** 3) / param * 5.166 * (
-                    (eta[mask] * area[mask]) / (d[mask])) ** 0.9 * np.abs(m[mask]) ** -1.9
+        lambda_der = 0.5 * np.log(10) ** 2 / (np.log(param) ** 3) / param * 5.166 * (
+                    (eta * area) / (d)) ** 0.9 * np.abs(m) ** -1.9
         return lambda_der
     else:
-        lambda_der[mask] = -(64 * eta[mask] * area[mask]) / (m[mask] ** 2 * d[mask])
+        lambda_der = -(64 * eta * area) / (m ** 2 * d)
         return lambda_der
 
 
