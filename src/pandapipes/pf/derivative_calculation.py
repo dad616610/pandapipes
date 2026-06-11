@@ -58,7 +58,7 @@ def calculate_derivatives_hydraulic(net,
 
     # Darcy Friction factor: lambda
     re = np.abs(branch_pit[:,MDOTINIT]) * branch_pit[:,D] / (eta * branch_pit[:, AREA])
-    lambda_, re = calc_lambda(
+    lambda_ = calc_lambda(
         re,
         branch_pit[:, MDOTINIT],
         eta,
@@ -230,7 +230,7 @@ def calc_lambda(re, m, eta, d, k, gas_mode, friction_model, lengths, options, ar
         lambda_ = lambda_laminar[mask] + lambda_nikuradse[mask]
     res = np.zeros_like(re)
     res[mask] = lambda_
-    return res, re
+    return res
 
 
 def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re):
