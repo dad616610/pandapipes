@@ -189,28 +189,26 @@ def calc_lambda(m, eta, d, k, gas_mode, friction_model, lengths, options, area):
     else:
         re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(m, d, k, eta, area)
 
+    mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
     if friction_model == "colebrook":
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
         max_iter = options.get("max_iter_colebrook", 100)
         tolerance = options.get("tolerance_colebrook", 1e-4)
-        mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
-        converged, lambda_colebrook = colebrook_white(re[mask], d[mask], k[mask], lambda_nikuradse[mask], max_iter, lengths[mask], tolerance)
+        converged, lambda_ = colebrook_white(re[mask], d[mask], k[mask], lambda_nikuradse[mask], max_iter, lengths[mask], tolerance)
         if not converged:
             raise PipeflowNotConverged("The Colebrook-White algorithm did not converge. There might be model "
                                        "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
                                        "argument to the pipeflow.")
-        res = np.zeros_like(re)
-        res[mask] = lambda_colebrook
-        return res, re
     elif friction_model == "swamee-jain":
         # 1.325 instead of 0.25???
-        lambda_swamee_jain = 0.25 / ((np.log10(k / (3.7 * d) + 5.74 / (re ** 0.9))) ** 2)
-        return lambda_swamee_jain, re
+        lambda_ = 0.25 / ((np.log10(k[mask] / (3.7 * d[mask]) + 5.74 / (re[mask] ** 0.9))) ** 2)
     else:
         # lambda_tot = np.where(re > 2300, lambda_laminar + lambda_nikuradse, lambda_laminar)
-        lambda_tot = lambda_laminar + lambda_nikuradse
-        return lambda_tot, re
+        lambda_ = lambda_laminar[mask] + lambda_nikuradse[mask]
+    res = np.zeros_like(re)
+    res[mask] = lambda_
+    return res, re
 
 
 def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re, lengths):
