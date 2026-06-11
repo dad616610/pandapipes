@@ -241,31 +241,30 @@ def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re, lengths
     df_dm = np.zeros_like(m)
     df_dlambda = np.zeros_like(m)
     lambda_der = np.zeros_like(m)
-    pos = ~np.isclose(re, 0)
+    mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
 
     if friction_model == "colebrook":
-        pos &= ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
-        b_term[pos] = (2.51 * eta[pos] * area[pos] / (m[pos] * d[pos] * np.sqrt(lambda_pipe[pos])) + k[pos] / (
-                    3.71 * d[pos]))
+        b_term[mask] = (2.51 * eta[mask] * area[mask] / (m[mask] * d[mask] * np.sqrt(lambda_pipe[mask])) + k[mask] / (
+                    3.71 * d[mask]))
 
-        df_dm[pos] = -2 * 2.51 * eta[pos] * area[pos] / (m[pos] ** 2 * np.sqrt(lambda_pipe[pos]) * d[pos]) / (
-                    np.log(10) * b_term[pos])
+        df_dm[mask] = -2 * 2.51 * eta[mask] * area[mask] / (m[mask] ** 2 * np.sqrt(lambda_pipe[mask]) * d[mask]) / (
+                    np.log(10) * b_term[mask])
 
-        df_dlambda[pos] = -0.5 * lambda_pipe[pos] ** (-3 / 2) - (2.51 * eta[pos] * area[pos] / (d[pos] * m[pos])) * \
-                          lambda_pipe[pos] ** (-3 / 2) / (np.log(10) * b_term[pos])
+        df_dlambda[mask] = -0.5 * lambda_pipe[mask] ** (-3 / 2) - (2.51 * eta[mask] * area[mask] / (d[mask] * m[mask])) * \
+                          lambda_pipe[mask] ** (-3 / 2) / (np.log(10) * b_term[mask])
 
-        lambda_der[pos] = df_dm[pos] / df_dlambda[pos]
+        lambda_der[mask] = df_dm[mask] / df_dlambda[mask]
 
         return lambda_der
     elif friction_model == "swamee-jain":
-        param = (k[pos] / (3.7 * d[pos]) + 5.74 * ((eta[pos] * area[pos]) / (np.abs(m[pos]) * d[pos])) ** 0.9)
+        param = (k[mask] / (3.7 * d[mask]) + 5.74 * ((eta[mask] * area[mask]) / (np.abs(m[mask]) * d[mask])) ** 0.9)
         # 0.5 / (log(10) * log(param)^3 * param) * 5.166 * abs(eta)^0.9  / (abs(rho * d)^0.9
         # * abs(v_corr)^1.9)
-        lambda_der[pos] = 0.5 * np.log(10) ** 2 / (np.log(param) ** 3) / param * 5.166 * (
-                    (eta[pos] * area[pos]) / (d[pos])) ** 0.9 * np.abs(m[pos]) ** -1.9
+        lambda_der[mask] = 0.5 * np.log(10) ** 2 / (np.log(param) ** 3) / param * 5.166 * (
+                    (eta[mask] * area[mask]) / (d[mask])) ** 0.9 * np.abs(m[mask]) ** -1.9
         return lambda_der
     else:
-        lambda_der[pos] = -(64 * eta[pos] * area[pos]) / (m[pos] ** 2 * d[pos])
+        lambda_der[mask] = -(64 * eta[mask] * area[mask]) / (m[mask] ** 2 * d[mask])
         return lambda_der
 
 
