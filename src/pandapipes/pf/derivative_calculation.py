@@ -195,7 +195,7 @@ def calc_lambda(m, eta, d, k, gas_mode, friction_model, lengths, options, area):
         from pandapipes.pipeflow import PipeflowNotConverged
         max_iter = options.get("max_iter_colebrook", 100)
         tolerance = options.get("tolerance_colebrook", 1e-4)
-        converged, lambda_ = colebrook_white(re[mask], d[mask], k[mask], lambda_nikuradse[mask], max_iter, lengths[mask], tolerance)
+        converged, lambda_ = colebrook_white(re[mask], d[mask], k[mask], lambda_nikuradse[mask], max_iter, tolerance)
         if not converged:
             raise PipeflowNotConverged("The Colebrook-White algorithm did not converge. There might be model "
                                        "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
@@ -266,7 +266,7 @@ def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re, lengths
         return lambda_der
 
 
-def colebrook_white(re, d, k, lambda_nikuradse, max_iter, lengths, tolerance=1e-4):
+def colebrook_white(re, d, k, lambda_nikuradse, max_iter, tolerance=1e-4):
     """
     Function calculates the friction factor of a pipe using the Colebrook-White equation. It is an
     implicit equation which is solved using the Newton-Raphson method. For pipes with zero flow or
@@ -283,8 +283,6 @@ def colebrook_white(re, d, k, lambda_nikuradse, max_iter, lengths, tolerance=1e-
     :type lambda_nikuradse: np.array
     :param max_iter: Maximum number of iterations for the Colebrook-White calculation
     :type max_iter: int
-    :param lengths: Length of the pipes [m] - only used to identify zero-length pipes
-    :type lengths: np.array
     :param tolerance: Tolerance for the Colebrook-White calculation
     :type tolerance: float
     :return: lambda_cb, converged
