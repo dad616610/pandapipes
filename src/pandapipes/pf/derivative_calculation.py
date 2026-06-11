@@ -194,12 +194,15 @@ def calc_lambda(m, eta, d, k, gas_mode, friction_model, lengths, options, area):
         from pandapipes.pipeflow import PipeflowNotConverged
         max_iter = options.get("max_iter_colebrook", 100)
         tolerance = options.get("tolerance_colebrook", 1e-4)
-        converged, lambda_colebrook = colebrook_white(re, d, k, lambda_nikuradse, max_iter, lengths, tolerance)
+        mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
+        converged, lambda_colebrook = colebrook_white(re[mask], d[mask], k[mask], lambda_nikuradse[mask], max_iter, lengths[mask], tolerance)
         if not converged:
             raise PipeflowNotConverged("The Colebrook-White algorithm did not converge. There might be model "
                                        "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
                                        "argument to the pipeflow.")
-        return lambda_colebrook, re
+        res = np.zeros_like(re)
+        res[mask] = lambda_colebrook
+        return res, re
     elif friction_model == "swamee-jain":
         # 1.325 instead of 0.25???
         lambda_swamee_jain = 0.25 / ((np.log10(k / (3.7 * d) + 5.74 / (re ** 0.9))) ** 2)
@@ -300,17 +303,16 @@ def colebrook_white(re, d, k, lambda_nikuradse, max_iter, lengths, tolerance=1e-
         return -1 / 2 * lambda_cb ** (-3 / 2) - (2.51 / re_nz) * lambda_cb ** (-3 / 2) / (
                     np.log(10) * (2.51 / (re_nz * np.sqrt(lambda_cb)) + k_nz / (3.71 * d_nz)))
 
-    mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
     lambda_res = lambda_nikuradse
 
-    res = newton(colebrook_white_implicit, lambda_res[mask], maxiter=max_iter, args=(re[mask], k[mask], d[mask]),
+    res = newton(colebrook_white_implicit, lambda_res, maxiter=max_iter, args=(re, k, d),
                  tol=tolerance, full_output=True, fprime=cw_derivative)  # , fprime2=cw_derivative_2)
 
-    if lambda_res[mask].size == 1:
-        lambda_res[mask] = res[0]
+    if lambda_res.size == 1:
+        lambda_res = res[0]
         converged = res[1].converged
     else:
-        lambda_res[mask] = res.root
+        lambda_res = res.root
         converged = np.all(res.converged)
 
     return converged, lambda_res
