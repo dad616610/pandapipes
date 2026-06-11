@@ -58,19 +58,20 @@ def calculate_derivatives_hydraulic(net,
 
     # Darcy Friction factor: lambda
     re = np.abs(branch_pit[:,MDOTINIT]) * branch_pit[:,D] / (eta * branch_pit[:, AREA])
-    lambda_ = calc_lambda(
-        re,
-        branch_pit[:, MDOTINIT],
-        eta,
-        branch_pit[:, D],
-        branch_pit[:, K],
+    mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
+    lambda_ = np.zeros_like(re)
+    lambda_[mask] = calc_lambda(
+        re[mask],
+        branch_pit[mask, MDOTINIT],
+        eta[mask],
+        branch_pit[mask, D],
+        branch_pit[mask, K],
         gas_mode,
         friction_model,
-        branch_pit[:, LENGTH],
+        branch_pit[mask, LENGTH],
         options,
-        branch_pit[:, AREA],
+        branch_pit[mask, AREA],
     )
-    mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
     der_lambda = np.zeros_like(re)
     der_lambda[mask] = calc_der_lambda(
         branch_pit[mask, MDOTINIT],
@@ -211,26 +212,23 @@ def calc_lambda(re, m, eta, d, k, gas_mode, friction_model, lengths, options, ar
     else:
         re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(re, m, d, k, eta, area)
 
-    mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
     if friction_model == "colebrook":
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
         max_iter = options.get("max_iter_colebrook", 100)
         tolerance = options.get("tolerance_colebrook", 1e-4)
-        converged, lambda_ = colebrook_white(re[mask], d[mask], k[mask], lambda_nikuradse[mask], max_iter, tolerance)
+        converged, lambda_ = colebrook_white(re, d, k, lambda_nikuradse, max_iter, tolerance)
         if not converged:
             raise PipeflowNotConverged("The Colebrook-White algorithm did not converge. There might be model "
                                        "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
                                        "argument to the pipeflow.")
     elif friction_model == "swamee-jain":
         # 1.325 instead of 0.25???
-        lambda_ = 0.25 / ((np.log10(k[mask] / (3.7 * d[mask]) + 5.74 / (re[mask] ** 0.9))) ** 2)
+        lambda_ = 0.25 / ((np.log10(k / (3.7 * d) + 5.74 / (re ** 0.9))) ** 2)
     else:
         # lambda_tot = np.where(re > 2300, lambda_laminar + lambda_nikuradse, lambda_laminar)
-        lambda_ = lambda_laminar[mask] + lambda_nikuradse[mask]
-    res = np.zeros_like(re)
-    res[mask] = lambda_
-    return res
+        lambda_ = lambda_laminar + lambda_nikuradse
+    return lambda_
 
 
 def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re):
