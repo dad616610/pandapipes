@@ -226,28 +226,22 @@ def derivatives_thermal_numba(node_pit, branch_pit,
     return fn, dfn_dt, fnt, dfnt_dt, dfnt_dtout, fb, dfb_dt, dfb_dtout, infeed
 
 
-@jit((float64[:], float64[:], float64[:], float64[:], float64[:]), nopython=True)
-def calc_lambda_nikuradse_incomp_numba(m, d, k, eta, area):
+@jit((float64[:],float64[:], float64[:], float64[:], float64[:], float64[:]), nopython=True)
+def calc_lambda_nikuradse_incomp_numba(re, m, d, k, eta, area):
     lambda_nikuradse = np.zeros_like(m)
     lambda_laminar = np.zeros_like(m)
-    re = np.zeros_like(m)
-    m_abs = np.abs(m)
     for i in range(m.shape[0]):
-        re[i] = np.divide(m_abs[i] * d[i], eta[i] * area[i])
         if (abs(re[i]) > 1.e-8):
             lambda_laminar[i] = 64 / re[i]
         lambda_nikuradse[i] = np.power(-2 * np.log10(k[i] / (3.71 * d[i])), -2)
     return re, lambda_laminar, lambda_nikuradse
 
 
-@jit((float64[:], float64[:], float64[:], float64[:], float64[:]), nopython=True)
-def calc_lambda_nikuradse_comp_numba(m, d, k, eta, area):
+@jit((float64[:],float64[:], float64[:], float64[:], float64[:], float64[:]), nopython=True)
+def calc_lambda_nikuradse_comp_numba(re,m, d, k, eta, area):
     lambda_nikuradse = np.zeros_like(m)
     lambda_laminar = np.zeros_like(m)
-    re = np.zeros_like(m)
     for i, mi in enumerate(m):
-        m_abs = np.abs(mi)
-        re[i] = np.divide(m_abs * d[i], eta[i] * area[i])
         if (abs(re[i]) > 1.e-8):
             lambda_laminar[i] = np.divide(64, re[i])
         lambda_nikuradse[i] = np.divide(1, (2 * np.log10(np.divide(d[i], k[i])) + 1.14) ** 2)

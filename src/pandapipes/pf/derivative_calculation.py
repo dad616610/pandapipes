@@ -57,8 +57,19 @@ def calculate_derivatives_hydraulic(net,
     eta = get_branch_real_eta(fluid, node_pit, branch_pit, p_m)
 
     # Darcy Friction factor: lambda
-    lambda_, re = calc_lambda(branch_pit[:, MDOTINIT], eta, branch_pit[:, D], branch_pit[:, K], gas_mode,
-        friction_model, branch_pit[:, LENGTH], options, branch_pit[:, AREA])
+    re = np.abs(branch_pit[:,MDOTINIT]) * branch_pit[:,D] / (eta * branch_pit[:, AREA])
+    lambda_, re = calc_lambda(
+        re,
+        branch_pit[:, MDOTINIT],
+        eta,
+        branch_pit[:, D],
+        branch_pit[:, K],
+        gas_mode,
+        friction_model,
+        branch_pit[:, LENGTH],
+        options,
+        branch_pit[:, AREA],
+    )
     mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
     der_lambda = np.zeros_like(re)
     der_lambda[mask] = calc_der_lambda(
@@ -161,7 +172,7 @@ def get_derived_values(node_pit, from_nodes, to_nodes, use_numba):
     return calc_derived_values_np(node_pit, from_nodes, to_nodes)
 
 
-def calc_lambda(m, eta, d, k, gas_mode, friction_model, lengths, options, area):
+def calc_lambda(re, m, eta, d, k, gas_mode, friction_model, lengths, options, area):
     """
     Function calculates the friction factor of a pipe. Turbulence is calculated based on
     Nikuradse. If v equals 0, a value of 0.001 is used in order to avoid division by zero.
@@ -196,9 +207,9 @@ def calc_lambda(m, eta, d, k, gas_mode, friction_model, lengths, options, area):
         from pandapipes.pf.derivative_toolbox import (calc_lambda_nikuradse_incomp_np as calc_lambda_nikuradse_incomp,
                                                       calc_lambda_nikuradse_comp_np as calc_lambda_nikuradse_comp)
     if gas_mode:
-        re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_comp(m, d, k, eta, area)
+        re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_comp(re, m, d, k, eta, area)
     else:
-        re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(m, d, k, eta, area)
+        re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(re, m, d, k, eta, area)
 
     mask = ~np.isclose(re, 0) & ~np.isclose(lengths, 0, rtol=1e-10, atol=1e-11)
     if friction_model == "colebrook":
