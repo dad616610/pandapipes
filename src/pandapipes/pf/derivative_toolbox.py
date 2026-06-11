@@ -203,18 +203,16 @@ def derivatives_thermal_np(node_pit, branch_pit,
     return fn, dfn_dt, fnt, dfnt_dt, dfnt_dtout, fb, dfb_dt, dfb_dtout, infeed
 
 
-def calc_lambda_nikuradse_incomp_np(re,m, d, k, eta, area):
-    lambda_laminar = np.zeros_like(m)
-    lambda_laminar[~np.isclose(re, 0)] = 64 / re[~np.isclose(re, 0)]
+def calc_lambda_nikuradse_incomp_np(re, d, k):
+    lambda_laminar = 64 / re
     lambda_nikuradse = np.divide(1, (-2 * np.log10(k / (3.71 * d))) ** 2)
-    return re, lambda_laminar, lambda_nikuradse
+    return lambda_laminar, lambda_nikuradse
 
 
-def calc_lambda_nikuradse_comp_np(re, m, d, k, eta, area):
-    lambda_laminar = np.zeros_like(m)
-    lambda_laminar[~np.isclose(re, 0)] = 64 / re[~np.isclose(re, 0)]
+def calc_lambda_nikuradse_comp_np(re, d, k):
+    lambda_laminar = 64 / re
     lambda_nikuradse = np.divide(1, (2 * np.log10(d / k) + 1.14) ** 2)
-    return re, lambda_laminar, lambda_nikuradse
+    return lambda_laminar, lambda_nikuradse
 
 
 def calc_medium_pressure_with_derivative_np(p_init_i_abs, p_init_i1_abs):

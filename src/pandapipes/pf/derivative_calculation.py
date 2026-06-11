@@ -208,9 +208,9 @@ def calc_lambda(re, m, eta, d, k, gas_mode, friction_model, lengths, options, ar
         from pandapipes.pf.derivative_toolbox import (calc_lambda_nikuradse_incomp_np as calc_lambda_nikuradse_incomp,
                                                       calc_lambda_nikuradse_comp_np as calc_lambda_nikuradse_comp)
     if gas_mode:
-        re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_comp(re, m, d, k, eta, area)
+        lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_comp(re, d, k)
     else:
-        re, lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(re, m, d, k, eta, area)
+        lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(re, d, k)
 
     if friction_model == "colebrook":
         # TODO: move this import to top level if possible
