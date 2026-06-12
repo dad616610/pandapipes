@@ -235,11 +235,6 @@ def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re):
     :rtype:
     """
 
-    b_term = np.zeros_like(m)
-    df_dm = np.zeros_like(m)
-    df_dlambda = np.zeros_like(m)
-    lambda_der = np.zeros_like(m)
-
     if friction_model == "colebrook":
         b_term = (2.51 * eta * area / (m * d * np.sqrt(lambda_pipe)) + k / (
                     3.71 * d))
