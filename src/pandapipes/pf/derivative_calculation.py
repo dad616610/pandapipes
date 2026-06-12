@@ -62,15 +62,10 @@ def calculate_derivatives_hydraulic(net,
     lambda_ = np.zeros_like(re)
     lambda_[mask] = calc_lambda(
         re[mask],
-        branch_pit[mask, MDOTINIT],
-        eta[mask],
         branch_pit[mask, D],
         branch_pit[mask, K],
-        gas_mode,
         friction_model,
-        branch_pit[mask, LENGTH],
         options,
-        branch_pit[mask, AREA],
     )
     der_lambda = np.zeros_like(re)
     der_lambda[mask] = calc_der_lambda(
@@ -173,30 +168,20 @@ def get_derived_values(node_pit, from_nodes, to_nodes, use_numba):
     return calc_derived_values_np(node_pit, from_nodes, to_nodes)
 
 
-def calc_lambda(re, m, eta, d, k, gas_mode, friction_model, lengths, options, area):
+def calc_lambda(re, d, k, friction_model, options):
     """
     Function calculates the friction factor of a pipe. Turbulence is calculated based on
     Nikuradse. If v equals 0, a value of 0.001 is used in order to avoid division by zero.
     This should not be a problem as the pressure loss term will equal zero (lambda * u^2).
 
-    :param m:
-    :type m:
-    :param eta:
-    :type eta:
     :param d:
     :type d:
     :param k:
     :type k:
-    :param gas_mode:
-    :type gas_mode:
     :param friction_model:
     :type friction_model:
-    :param lengths:
-    :type lengths:
     :param options:
     :type options:
-    :param area:
-    :type area:
     :return:
     :rtype:
     """
