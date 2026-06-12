@@ -201,16 +201,11 @@ def calc_lambda(re, m, eta, d, k, gas_mode, friction_model, lengths, options, ar
     :rtype:
     """
     if options["use_numba"]:
-        from pandapipes.pf.derivative_toolbox_numba import (
-            calc_lambda_nikuradse_incomp_numba as calc_lambda_nikuradse_incomp,
-            calc_lambda_nikuradse_comp_numba as calc_lambda_nikuradse_comp)
+        from pandapipes.pf.derivative_toolbox_numba import calc_lambda_nikuradse_numba as calc_lambda_nikuradse
     else:
-        from pandapipes.pf.derivative_toolbox import (calc_lambda_nikuradse_incomp_np as calc_lambda_nikuradse_incomp,
-                                                      calc_lambda_nikuradse_comp_np as calc_lambda_nikuradse_comp)
-    if gas_mode:
-        lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_comp(re, d, k)
-    else:
-        lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse_incomp(re, d, k)
+        from pandapipes.pf.derivative_toolbox import calc_lambda_nikuradse_np as calc_lambda_nikuradse
+
+    lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse(re, d, k)
 
     if friction_model == "colebrook":
         # TODO: move this import to top level if possible

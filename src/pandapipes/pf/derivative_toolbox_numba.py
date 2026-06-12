@@ -227,24 +227,13 @@ def derivatives_thermal_numba(node_pit, branch_pit,
 
 
 @jit((float64[:],float64[:], float64[:]), nopython=True)
-def calc_lambda_nikuradse_incomp_numba(re, d, k):
+def calc_lambda_nikuradse_numba(re, d, k):
     n = re.size
     lambda_nikuradse = np.empty(n, dtype=re.dtype)
     lambda_laminar = np.empty(n, dtype=re.dtype)
     for i  in range(n):
         lambda_laminar[i] = 64 / re[i]
         lambda_nikuradse[i] = np.power(-2 * np.log10(k[i] / (3.71 * d[i])), -2)
-    return lambda_laminar, lambda_nikuradse
-
-
-@jit((float64[:],float64[:], float64[:]), nopython=True)
-def calc_lambda_nikuradse_comp_numba(re, d, k):
-    n = re.size
-    lambda_nikuradse = np.empty(n, dtype=re.dtype)
-    lambda_laminar = np.empty(n, dtype=re.dtype)
-    for i  in range(n):
-        lambda_laminar[i] = 64 / re[i]
-        lambda_nikuradse[i] = np.divide(1, (2 * np.log10(np.divide(d[i], k[i])) + 1.14) ** 2)
     return lambda_laminar, lambda_nikuradse
 
 
