@@ -203,8 +203,7 @@ def calc_lambda(re, d, k, friction_model, options):
                                        "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
                                        "argument to the pipeflow.")
     elif friction_model == "swamee-jain":
-        # 1.325 instead of 0.25???
-        lambda_ = 0.25 / ((np.log10(k / (3.7 * d) + 5.74 / (re ** 0.9))) ** 2)
+        lambda_ = 0.25 / np.log10(k / (3.7 * d) + 5.74 / (re ** 0.9)) ** 2
     else:
         # lambda_tot = np.where(re > 2300, lambda_laminar + lambda_nikuradse, lambda_laminar)
         lambda_ = lambda_laminar + lambda_nikuradse
@@ -236,28 +235,20 @@ def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re):
     """
 
     if friction_model == "colebrook":
-        b_term = (2.51 * eta * area / (m * d * np.sqrt(lambda_pipe)) + k / (
-                    3.71 * d))
-
-        df_dm = -2 * 2.51 * eta * area / (m ** 2 * np.sqrt(lambda_pipe) * d) / (
-                    np.log(10) * b_term)
-
-        df_dlambda = -0.5 * lambda_pipe ** (-3 / 2) - (2.51 * eta * area / (d * m)) * \
-                          lambda_pipe ** (-3 / 2) / (np.log(10) * b_term)
-
-        lambda_der = df_dm / df_dlambda
-
-        return lambda_der
+        ln10 = 2.302585092994045684017991454684364207601
+        u = k / (3.71 * d) + 2.51 / (re * np.sqrt(lambda_pipe))
+        return -10.04 * lambda_pipe / ((ln10 * u * re + 5.02) * m)
     elif friction_model == "swamee-jain":
-        param = (k / (3.7 * d) + 5.74 * ((eta * area) / (np.abs(m) * d)) ** 0.9)
-        # 0.5 / (log(10) * log(param)^3 * param) * 5.166 * abs(eta)^0.9  / (abs(rho * d)^0.9
-        # * abs(v_corr)^1.9)
-        lambda_der = 0.5 * np.log(10) ** 2 / (np.log(param) ** 3) / param * 5.166 * (
-                    (eta * area) / (d)) ** 0.9 * np.abs(m) ** -1.9
-        return lambda_der
+        inv_re_09 = 1 / re**0.9
+        log_term = k / (3.7 * d) + 5.74 * inv_re_09
+        # a = 0.25 * ln(10)**2 * (-2) * 5.74 * (-0.9)
+        a = 13.69480281936570206128078428173834769740
+        return a * np.log(log_term)**-3 / log_term * inv_re_09 / m
     else:
-        lambda_der = -(64 * eta * area) / (m ** 2 * d)
-        return lambda_der
+        # FIXME?: mathematically, der_lambda should be an odd function
+        # with m**2 the function is even
+        # return -64 / (re * m)
+        return -64 / (re * np.abs(m))
 
 
 def colebrook_white(re, d, k, lambda_nikuradse, max_iter, tolerance=1e-4):
