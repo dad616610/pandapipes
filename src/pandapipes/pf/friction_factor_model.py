@@ -53,8 +53,8 @@ class Nikuradse(FrictionFactorModel):
         nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
         lambda_ = laminar + nikuradse
 
-        # FIXME?: mathematically, der_lambda should be an odd function
-        # with m**2 the function is even
+        # FIXME?: mathematically, dlambda / dm should be an odd function,
+        # but with m**2 the function is even
         # return -64 / (re * m)
         dlambda_dm = -64 / (re * np.abs(m))
         return lambda_, dlambda_dm
