@@ -43,7 +43,6 @@ def calculate_derivatives_hydraulic(net,
                                                       calc_medium_pressure_with_derivative_np as calc_medium_pressure_with_derivative)
     fluid = get_fluid(net)
     gas_mode = fluid.is_gas
-    friction_model = options["friction_model"]
 
     from_nodes = branch_pit[:, FROM_NODE].astype(np.int32)
     to_nodes = branch_pit[:, TO_NODE].astype(np.int32)
@@ -58,6 +57,18 @@ def calculate_derivatives_hydraulic(net,
     rho = get_branch_real_density(fluid, node_pit, branch_pit)
     eta = get_branch_real_eta(fluid, node_pit, branch_pit, p_m)
 
+
+    friction_model = options["friction_model"]
+    if friction_model == "colebrook":
+        friction_factor_model = Colebrook(
+            tolerance=options.get("tolerance_colebrook", 1e-4),
+            max_iter=options.get("max_iter_colebrook", 100),
+        )
+    elif friction_model == "swamee-jain":
+        friction_factor_model = SwameeJain()
+    else:
+        friction_factor_model = Nikuradse()
+
     # Darcy Friction factor: lambda
     re = (
         np.abs(branch_pit[:, MDOTINIT])
@@ -71,17 +82,6 @@ def calculate_derivatives_hydraulic(net,
     k_over_D = branch_pit[mask, K] / branch_pit[mask, D]
     lambda_ = np.zeros_like(re)
     der_lambda = np.zeros_like(re)
-
-    if friction_model == "colebrook":
-        friction_factor_model = Colebrook(
-            tolerance=options.get("tolerance_colebrook", 1e-4),
-            max_iter=options.get("max_iter_colebrook", 100),
-        )
-    elif friction_model == "swamee-jain":
-        friction_factor_model = SwameeJain()
-    else:
-        friction_factor_model = Nikuradse()
-
     lambda_[mask], der_lambda[mask] = (
         friction_factor_model.compute_lambda_and_dlambda_dm(
             k_over_D,
