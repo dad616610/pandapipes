@@ -70,12 +70,10 @@ def calculate_derivatives_hydraulic(net,
     der_lambda = np.zeros_like(re)
     der_lambda[mask] = calc_der_lambda(
         branch_pit[mask, MDOTINIT],
-        eta[mask],
         branch_pit[mask, D],
         branch_pit[mask, K],
         friction_model,
         lambda_[mask],
-        branch_pit[mask, AREA],
         re[mask],
     )
 
@@ -210,7 +208,7 @@ def calc_lambda(re, d, k, friction_model, options):
     return lambda_
 
 
-def calc_der_lambda(m, eta, d, k, friction_model, lambda_pipe, area, re):
+def calc_der_lambda(m, d, k, friction_model, lambda_pipe, re):
     """
     Function calculates the derivative of lambda with respect to v. Turbulence is calculated based
     on Nikuradse. This should not be a problem as the pressure loss term will equal zero
