@@ -59,8 +59,15 @@ def calculate_derivatives_hydraulic(net,
     eta = get_branch_real_eta(fluid, node_pit, branch_pit, p_m)
 
     # Darcy Friction factor: lambda
-    re = np.abs(branch_pit[:,MDOTINIT]) * branch_pit[:,D] / (eta * branch_pit[:, AREA])
-    mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
+    re = (
+        np.abs(branch_pit[:, MDOTINIT])
+        * branch_pit[:, D]
+        / (eta * branch_pit[:, AREA])
+    )
+    mask = (
+        ~np.isclose(re, 0)
+        & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
+    )
     k_over_D = branch_pit[mask, K] / branch_pit[mask, D]
     lambda_ = np.zeros_like(re)
     der_lambda = np.zeros_like(re)
@@ -75,10 +82,12 @@ def calculate_derivatives_hydraulic(net,
     else:
         friction_factor_model = Nikuradse()
 
-    lambda_[mask], der_lambda[mask] = friction_factor_model.compute_lambda_and_dlambda_dm(
-        k_over_D,
-        re[mask],
-        branch_pit[mask, MDOTINIT],
+    lambda_[mask], der_lambda[mask] = (
+        friction_factor_model.compute_lambda_and_dlambda_dm(
+            k_over_D,
+            re[mask],
+            branch_pit[mask, MDOTINIT],
+        )
     )
 
     branch_pit[:, RE] = re
@@ -171,8 +180,8 @@ def get_derived_values(node_pit, from_nodes, to_nodes, use_numba):
 
 
 class FrictionFactorModel(Protocol):
-
     def compute_lambda_and_dlambda_dm(self, k_over_D, re, m) -> tuple[npt.NDArray]: ...
+
 
 class SwameeJain(FrictionFactorModel):
     def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
@@ -188,11 +197,11 @@ class SwameeJain(FrictionFactorModel):
 
         # a = 0.25 * ln(10)**2 * (-2) * 5.74 * (-0.9)
         b = 13.69480281936570206128078428173834769740
-        dlambda_dm = b  * inv_re_09 / (log_cubed * inner_log_term * m)
+        dlambda_dm = b * inv_re_09 / (log_cubed * inner_log_term * m)
         return lambda_, dlambda_dm
 
-class Nikuradse(FrictionFactorModel):
 
+class Nikuradse(FrictionFactorModel):
     def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
         laminar = 64 / re
         nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
@@ -203,6 +212,7 @@ class Nikuradse(FrictionFactorModel):
         # return -64 / (re * m)
         dlambda_dm = -64 / (re * np.abs(m))
         return lambda_, dlambda_dm
+
 
 @dataclass(slots=True)
 class Colebrook(FrictionFactorModel):
@@ -216,7 +226,6 @@ class Colebrook(FrictionFactorModel):
         if not self.tolerance > 0:
             msg = "'tolerance' should be > 0"
             raise ValueError(msg)
-
 
     def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
         # TODO: move this import to top level if possible
@@ -232,17 +241,24 @@ class Colebrook(FrictionFactorModel):
         for _ in range(self.max_iter):
             inv_lambda_sqrt = 1 / np.sqrt(lambda_curr)
             inner_log_term = a + b * inv_lambda_sqrt
-            cubed_inv_lambda_sqrt = inv_lambda_sqrt ** 3
+            cubed_inv_lambda_sqrt = inv_lambda_sqrt**3
 
             f = inv_lambda_sqrt + 2 * np.log10(inner_log_term)
-            df = -0.5 * cubed_inv_lambda_sqrt - b * cubed_inv_lambda_sqrt * inv_ln10 / inner_log_term
+            df = (
+                -0.5 * cubed_inv_lambda_sqrt
+                - b * cubed_inv_lambda_sqrt * inv_ln10 / inner_log_term
+            )
 
             lambda_curr = lambda_prev - f / df
             if np.all(np.abs(lambda_curr - lambda_prev) < self.tolerance):
                 break
             lambda_prev = lambda_curr
         else:
-            msg = "The Colebrook-White algorithm did not converge. There might be model inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' argument to the pipeflow."
+            msg = (
+                "The Colebrook-White algorithm did not converge. "
+                "There might be model inconsistencies. The maximum iterations "
+                "can be given as 'max_iter_colebrook' argument to the pipeflow."
+            )
             raise PipeflowNotConverged(msg)
 
         ln10 = 2.302585092994045684017991454684364207601
