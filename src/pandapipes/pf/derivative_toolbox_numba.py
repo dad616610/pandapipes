@@ -225,18 +225,6 @@ def derivatives_thermal_numba(node_pit, branch_pit,
 
     return fn, dfn_dt, fnt, dfnt_dt, dfnt_dtout, fb, dfb_dt, dfb_dtout, infeed
 
-
-@jit((float64[:], float64[:]), nopython=True)
-def calc_lambda_nikuradse_numba(k_over_D, re):
-    n = re.size
-    lambda_nikuradse = np.empty(n, dtype=re.dtype)
-    lambda_laminar = np.empty(n, dtype=re.dtype)
-    for i  in range(n):
-        lambda_laminar[i] = 64 / re[i]
-        lambda_nikuradse[i] = np.power(-2 * np.log10(k_over_D[i] / 3.71), -2)
-    return lambda_laminar, lambda_nikuradse
-
-
 @jit((float64[:], float64[:]), nopython=True, cache=False)
 def calc_medium_pressure_with_derivative_numba(p_init_i_abs, p_init_i1_abs):
     p_m = p_init_i_abs.copy()
@@ -254,42 +242,6 @@ def calc_medium_pressure_with_derivative_numba(p_init_i_abs, p_init_i1_abs):
             der_p_m1[i] = (-3 * p_init_i1_abs[i] ** 2 * diff_p_sq
                            + 2 * p_init_i1_abs[i] * diff_p_cub) * diff_p_sq_div ** 2 * val
     return p_m, der_p_m, der_p_m1
-
-
-@jit((float64[:], float64[:], float64[:], float64[:], float64[:], int64), nopython=True)
-def colebrook_numba(re, d, k, lambda_nikuradse, dummy, max_iter):
-    lambda_cb = lambda_nikuradse.copy()
-    lambda_cb_old = lambda_nikuradse.copy()
-    converged = False
-    niter = 0
-
-    # Inner Newton-loop for calculation of lambda
-    while not converged and niter < max_iter:
-        for i in range(len(lambda_cb)):
-            if (abs(re[i]) < 1.e-8): continue
-            sqt = np.sqrt(lambda_cb[i])
-            add_val = np.divide(k[i], (3.71 * d[i]))
-            sqt_div = np.divide(1, sqt)
-            re_div = np.divide(1, re[i])
-            sqt_div3 = sqt_div ** 3
-
-            f = sqt_div + 2 * np.log10(2.51 * re_div * sqt_div + add_val)
-            df_dlambda_cb = - 0.5 * sqt_div3 - 2.51 * re_div * sqt_div3 * np.divide(
-                1, np.log(10) * (2.51 * re_div * sqt_div + add_val))
-            x = - f / df_dlambda_cb
-
-            lambda_cb_old[i] = lambda_cb[i]
-            lambda_cb[i] += x
-
-        dx = np.abs(lambda_cb - lambda_cb_old) * dummy
-        error_lambda = linalg.norm(dx) / dx.shape[0]
-
-        if error_lambda <= 1e-4:
-            converged = True
-
-        niter += 1
-
-    return converged, lambda_cb
 
 
 @jit((float64[:, :], int32[:], int32[:]), nopython=True)

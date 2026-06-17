@@ -13,7 +13,6 @@ from pandapipes.pf.internals_toolbox import get_from_nodes_corrected, get_to_nod
 from pandapipes.pf.pipeflow_setup import get_net_option, get_lookup
 from pandapipes.properties.fluids import get_fluid
 from pandapipes.properties.properties_toolbox import get_branch_real_density, get_branch_real_eta, get_branch_cp
-from scipy.optimize import newton
 
 
 def calculate_derivatives_hydraulic(net,
@@ -81,20 +80,6 @@ def calculate_derivatives_hydraulic(net,
         re[mask],
         branch_pit[mask, MDOTINIT],
     )
-
-    # lambda_[mask] = calc_lambda(
-    #     k_over_D,
-    #     re[mask],
-    #     friction_model,
-    #     options,
-    # )
-    # der_lambda[mask] = calc_der_lambda(
-    #     k_over_D,
-    #     re[mask],
-    #     branch_pit[mask, MDOTINIT],
-    #     lambda_[mask],
-    #     friction_model,
-    # )
 
     branch_pit[:, RE] = re
     branch_pit[:, LAMBDA] = lambda_
@@ -263,135 +248,3 @@ class Colebrook(FrictionFactorModel):
         ln10 = 2.302585092994045684017991454684364207601
         dlambda_dm = -10.04 * lambda_curr / ((ln10 * inner_log_term * re + 5.02) * m)
         return lambda_curr, dlambda_dm
-
-
-def calc_lambda(k_over_D, re, friction_model, options):
-    """
-    Function calculates the friction factor of a pipe. Turbulence is calculated based on
-    Nikuradse. If v equals 0, a value of 0.001 is used in order to avoid division by zero.
-    This should not be a problem as the pressure loss term will equal zero (lambda * u^2).
-
-    :param d:
-    :type d:
-    :param k:
-    :type k:
-    :param friction_model:
-    :type friction_model:
-    :param options:
-    :type options:
-    :return:
-    :rtype:
-    """
-    if options["use_numba"]:
-        from pandapipes.pf.derivative_toolbox_numba import calc_lambda_nikuradse_numba as calc_lambda_nikuradse
-    else:
-        from pandapipes.pf.derivative_toolbox import calc_lambda_nikuradse_np as calc_lambda_nikuradse
-
-    lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse(k_over_D, re)
-
-    if friction_model == "colebrook":
-        # TODO: move this import to top level if possible
-        from pandapipes.pipeflow import PipeflowNotConverged
-        max_iter = options.get("max_iter_colebrook", 100)
-        tolerance = options.get("tolerance_colebrook", 1e-4)
-        converged, lambda_ = colebrook_white(k_over_D, re, lambda_nikuradse, max_iter, tolerance)
-        if not converged:
-            raise PipeflowNotConverged("The Colebrook-White algorithm did not converge. There might be model "
-                                       "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
-                                       "argument to the pipeflow.")
-    elif friction_model == "swamee-jain":
-        lambda_ = 0.25 / np.log10(k_over_D / 3.7 + 5.74 / (re ** 0.9)) ** 2
-    else:
-        # lambda_tot = np.where(re > 2300, lambda_laminar + lambda_nikuradse, lambda_laminar)
-        lambda_ = lambda_laminar + lambda_nikuradse
-    return lambda_
-
-
-def calc_der_lambda(k_over_D, re, m, lambda_pipe, friction_model):
-    """
-    Function calculates the derivative of lambda with respect to v. Turbulence is calculated based
-    on Nikuradse. This should not be a problem as the pressure loss term will equal zero
-    (lambda * u^2).
-
-    :param m:
-    :type m:
-    :param eta:
-    :type eta:
-    :param d:
-    :type d:
-    :param k:
-    :type k:
-    :param friction_model:
-    :type friction_model:
-    :param lambda_pipe:
-    :type lambda_pipe:
-    :param area:
-    :type area:
-    :return:
-    :rtype:
-    """
-    if friction_model == "colebrook":
-        ln10 = 2.302585092994045684017991454684364207601
-        u = k_over_D / 3.71 + 2.51 / (re * np.sqrt(lambda_pipe))
-        return -10.04 * lambda_pipe / ((ln10 * u * re + 5.02) * m)
-    elif friction_model == "swamee-jain":
-        inv_re_09 = 1 / re**0.9
-        log_term = k_over_D / 3.7 + 5.74 * inv_re_09
-        # a = 0.25 * ln(10)**2 * (-2) * 5.74 * (-0.9)
-        a = 13.69480281936570206128078428173834769740
-        return a * np.log(log_term)**-3 / log_term * inv_re_09 / m
-    else:
-        # FIXME?: mathematically, der_lambda should be an odd function
-        # with m**2 the function is even
-        # return -64 / (re * m)
-        return -64 / (re * np.abs(m))
-
-
-def colebrook_white(k_over_D, re, lambda_nikuradse, max_iter, tolerance=1e-4):
-    """
-    Function calculates the friction factor of a pipe using the Colebrook-White equation. It is an
-    implicit equation which is solved using the Newton-Raphson method. For pipes with zero flow or
-    zero length, the initial guess is returned. This should be uncritical, as the pressure loss
-    term will equal zero (lambda * u^2 * l / d).
-
-    :param re: Reynolds number [dimensionless]
-    :type re: np.array
-    :param d: Diameter [m]
-    :type d: np.array
-    :param k: Roughness [m]
-    :type k: np.array
-    :param lambda_nikuradse: Initial guess for lambda (from Nikuradse)
-    :type lambda_nikuradse: np.array
-    :param max_iter: Maximum number of iterations for the Colebrook-White calculation
-    :type max_iter: int
-    :param tolerance: Tolerance for the Colebrook-White calculation
-    :type tolerance: float
-    :return: lambda_cb, converged
-    1. lambda_cb: Friction factor according to Colebrook-White
-    2. converged: True, if the Colebrook-White calculation converged for all pipes
-    :rtype: (np.array, bool)
-    """
-
-    def colebrook_white_implicit(lambda_cb, k_over_D, re):
-        inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
-        return inv_lambda_sqrt + 2 * np.log10(2.51 / re * inv_lambda_sqrt + k_over_D / 3.71)
-
-    def cw_derivative(lambda_cb, k_over_D, re):
-        inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
-        inv_lambda_sqrt_cubed = inv_lambda_sqrt ** 3
-        return -0.5 * inv_lambda_sqrt_cubed - (2.51 / re) * inv_lambda_sqrt_cubed / (
-                    np.log(10) * (2.51 / re * inv_lambda_sqrt + k_over_D / 3.71))
-
-    lambda_res = lambda_nikuradse
-
-    res = newton(colebrook_white_implicit, lambda_res, maxiter=max_iter, args=(k_over_D, re),
-                 tol=tolerance, full_output=True, fprime=cw_derivative)  # , fprime2=cw_derivative_2)
-
-    if lambda_res.size == 1:
-        lambda_res = res[0]
-        converged = res[1].converged
-    else:
-        lambda_res = res.root
-        converged = np.all(res.converged)
-
-    return converged, lambda_res
