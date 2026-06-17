@@ -203,9 +203,9 @@ def derivatives_thermal_np(node_pit, branch_pit,
     return fn, dfn_dt, fnt, dfnt_dt, dfnt_dtout, fb, dfb_dt, dfb_dtout, infeed
 
 
-def calc_lambda_nikuradse_np(re, d, k):
+def calc_lambda_nikuradse_np(k_over_D, re):
     lambda_laminar = 64 / re
-    lambda_nikuradse = 1 / (-2 * np.log10(k / (3.71 * d))) ** 2
+    lambda_nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
     return lambda_laminar, lambda_nikuradse
 
 

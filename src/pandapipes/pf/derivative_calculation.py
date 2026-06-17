@@ -59,22 +59,21 @@ def calculate_derivatives_hydraulic(net,
     # Darcy Friction factor: lambda
     re = np.abs(branch_pit[:,MDOTINIT]) * branch_pit[:,D] / (eta * branch_pit[:, AREA])
     mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
+    k_over_D = branch_pit[mask, K] / branch_pit[mask, D]
     lambda_ = np.zeros_like(re)
     lambda_[mask] = calc_lambda(
+        k_over_D,
         re[mask],
-        branch_pit[mask, D],
-        branch_pit[mask, K],
         friction_model,
         options,
     )
     der_lambda = np.zeros_like(re)
     der_lambda[mask] = calc_der_lambda(
-        branch_pit[mask, MDOTINIT],
-        branch_pit[mask, D],
-        branch_pit[mask, K],
-        friction_model,
-        lambda_[mask],
+        k_over_D,
         re[mask],
+        branch_pit[mask, MDOTINIT],
+        lambda_[mask],
+        friction_model,
     )
 
     branch_pit[:, RE] = re
@@ -166,7 +165,7 @@ def get_derived_values(node_pit, from_nodes, to_nodes, use_numba):
     return calc_derived_values_np(node_pit, from_nodes, to_nodes)
 
 
-def calc_lambda(re, d, k, friction_model, options):
+def calc_lambda(k_over_D, re, friction_model, options):
     """
     Function calculates the friction factor of a pipe. Turbulence is calculated based on
     Nikuradse. If v equals 0, a value of 0.001 is used in order to avoid division by zero.
@@ -188,27 +187,27 @@ def calc_lambda(re, d, k, friction_model, options):
     else:
         from pandapipes.pf.derivative_toolbox import calc_lambda_nikuradse_np as calc_lambda_nikuradse
 
-    lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse(re, d, k)
+    lambda_laminar, lambda_nikuradse = calc_lambda_nikuradse(k_over_D, re)
 
     if friction_model == "colebrook":
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
         max_iter = options.get("max_iter_colebrook", 100)
         tolerance = options.get("tolerance_colebrook", 1e-4)
-        converged, lambda_ = colebrook_white(re, d, k, lambda_nikuradse, max_iter, tolerance)
+        converged, lambda_ = colebrook_white(k_over_D, re, lambda_nikuradse, max_iter, tolerance)
         if not converged:
             raise PipeflowNotConverged("The Colebrook-White algorithm did not converge. There might be model "
                                        "inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' "
                                        "argument to the pipeflow.")
     elif friction_model == "swamee-jain":
-        lambda_ = 0.25 / np.log10(k / (3.7 * d) + 5.74 / (re ** 0.9)) ** 2
+        lambda_ = 0.25 / np.log10(k_over_D / 3.7 + 5.74 / (re ** 0.9)) ** 2
     else:
         # lambda_tot = np.where(re > 2300, lambda_laminar + lambda_nikuradse, lambda_laminar)
         lambda_ = lambda_laminar + lambda_nikuradse
     return lambda_
 
 
-def calc_der_lambda(m, d, k, friction_model, lambda_pipe, re):
+def calc_der_lambda(k_over_D, re, m, lambda_pipe, friction_model):
     """
     Function calculates the derivative of lambda with respect to v. Turbulence is calculated based
     on Nikuradse. This should not be a problem as the pressure loss term will equal zero
@@ -231,14 +230,13 @@ def calc_der_lambda(m, d, k, friction_model, lambda_pipe, re):
     :return:
     :rtype:
     """
-
     if friction_model == "colebrook":
         ln10 = 2.302585092994045684017991454684364207601
-        u = k / (3.71 * d) + 2.51 / (re * np.sqrt(lambda_pipe))
+        u = k_over_D / 3.71 + 2.51 / (re * np.sqrt(lambda_pipe))
         return -10.04 * lambda_pipe / ((ln10 * u * re + 5.02) * m)
     elif friction_model == "swamee-jain":
         inv_re_09 = 1 / re**0.9
-        log_term = k / (3.7 * d) + 5.74 * inv_re_09
+        log_term = k_over_D / 3.7 + 5.74 * inv_re_09
         # a = 0.25 * ln(10)**2 * (-2) * 5.74 * (-0.9)
         a = 13.69480281936570206128078428173834769740
         return a * np.log(log_term)**-3 / log_term * inv_re_09 / m
@@ -249,7 +247,7 @@ def calc_der_lambda(m, d, k, friction_model, lambda_pipe, re):
         return -64 / (re * np.abs(m))
 
 
-def colebrook_white(re, d, k, lambda_nikuradse, max_iter, tolerance=1e-4):
+def colebrook_white(k_over_D, re, lambda_nikuradse, max_iter, tolerance=1e-4):
     """
     Function calculates the friction factor of a pipe using the Colebrook-White equation. It is an
     implicit equation which is solved using the Newton-Raphson method. For pipes with zero flow or
@@ -274,16 +272,19 @@ def colebrook_white(re, d, k, lambda_nikuradse, max_iter, tolerance=1e-4):
     :rtype: (np.array, bool)
     """
 
-    def colebrook_white_implicit(lambda_cb, re_nz, k_nz, d_nz):
-        return lambda_cb ** (-1 / 2) + 2 * np.log10(2.51 / (re_nz * np.sqrt(lambda_cb)) + k_nz / (3.71 * d_nz))
+    def colebrook_white_implicit(lambda_cb, k_over_D, re):
+        inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
+        return inv_lambda_sqrt + 2 * np.log10(2.51 / re * inv_lambda_sqrt + k_over_D / 3.71)
 
-    def cw_derivative(lambda_cb, re_nz, k_nz, d_nz):
-        return -1 / 2 * lambda_cb ** (-3 / 2) - (2.51 / re_nz) * lambda_cb ** (-3 / 2) / (
-                    np.log(10) * (2.51 / (re_nz * np.sqrt(lambda_cb)) + k_nz / (3.71 * d_nz)))
+    def cw_derivative(lambda_cb, k_over_D, re):
+        inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
+        inv_lambda_sqrt_cubed = inv_lambda_sqrt ** 3
+        return -0.5 * inv_lambda_sqrt_cubed - (2.51 / re) * inv_lambda_sqrt_cubed / (
+                    np.log(10) * (2.51 / re * inv_lambda_sqrt + k_over_D / 3.71))
 
     lambda_res = lambda_nikuradse
 
-    res = newton(colebrook_white_implicit, lambda_res, maxiter=max_iter, args=(re, k, d),
+    res = newton(colebrook_white_implicit, lambda_res, maxiter=max_iter, args=(k_over_D, re),
                  tol=tolerance, full_output=True, fprime=cw_derivative)  # , fprime2=cw_derivative_2)
 
     if lambda_res.size == 1:
