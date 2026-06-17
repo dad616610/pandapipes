@@ -219,45 +219,50 @@ class Nikuradse(FrictionFactorModel):
         dlambda_dm = -64 / (re * np.abs(m))
         return lambda_, dlambda_dm
 
-@dataclass
+@dataclass(slots=True)
 class Colebrook(FrictionFactorModel):
     tolerance: float = 1e-4
     max_iter: int = 100
+
+    def __post_init__(self):
+        if not self.max_iter > 0:
+            msg = "'max_iter' should be > 0"
+            raise ValueError(msg)
+        if not self.tolerance > 0:
+            msg = "'tolerance' should be > 0"
+            raise ValueError(msg)
+
 
     def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
 
-        lambda_ = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
+        lambda_prev = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
+        lambda_curr = lambda_prev
 
-        def colebrook_white_implicit(lambda_cb, k_over_D, re):
-            inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
-            return inv_lambda_sqrt + 2 * np.log10(2.51 / re * inv_lambda_sqrt + k_over_D / 3.71)
+        a = k_over_D / 3.71
+        b = 2.51 / re
+        # 1 / ln(10)
+        inv_ln10 = 0.4342944819032518276511289189166050822944
+        for _ in range(self.max_iter):
+            inv_lambda_sqrt = 1 / np.sqrt(lambda_curr)
+            inner_log_term = a + b * inv_lambda_sqrt
+            cubed_inv_lambda_sqrt = inv_lambda_sqrt ** 3
 
-        def cw_derivative(lambda_cb, k_over_D, re):
-            inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
-            inv_lambda_sqrt_cubed = inv_lambda_sqrt ** 3
-            return -0.5 * inv_lambda_sqrt_cubed - (2.51 / re) * inv_lambda_sqrt_cubed / (
-                        np.log(10) * (2.51 / re * inv_lambda_sqrt + k_over_D / 3.71))
+            f = inv_lambda_sqrt + 2 * np.log10(inner_log_term)
+            df = -0.5 * cubed_inv_lambda_sqrt - b * cubed_inv_lambda_sqrt * inv_ln10 / inner_log_term
 
-        res = newton(colebrook_white_implicit, lambda_, maxiter=self.max_iter, args=(k_over_D, re),
-                     tol=self.tolerance, full_output=True, fprime=cw_derivative)
-
-        if lambda_.size == 1:
-            lambda_ = res[0]
-            converged = res[1].converged
+            lambda_curr = lambda_prev - f / df
+            if np.all(np.abs(lambda_curr - lambda_prev) < self.tolerance):
+                break
+            lambda_prev = lambda_curr
         else:
-            lambda_ = res.root
-            converged = np.all(res.converged)
-
-        if not converged:
             msg = "The Colebrook-White algorithm did not converge. There might be model inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' argument to the pipeflow."
             raise PipeflowNotConverged(msg)
 
         ln10 = 2.302585092994045684017991454684364207601
-        u = k_over_D / 3.71 + 2.51 / (re * np.sqrt(lambda_))
-        dlambda_dm = -10.04 * lambda_ / ((ln10 * u * re + 5.02) * m)
-        return lambda_, dlambda_dm
+        dlambda_dm = -10.04 * lambda_curr / ((ln10 * inner_log_term * re + 5.02) * m)
+        return lambda_curr, dlambda_dm
 
 
 def calc_lambda(k_over_D, re, friction_model, options):
