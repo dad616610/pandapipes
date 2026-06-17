@@ -1,4 +1,7 @@
+from typing import Protocol
 import numpy as np
+from dataclasses import dataclass
+import numpy.typing as npt
 from pandapipes.constants import NORMAL_TEMPERATURE
 from pandapipes.idx_branch import (LENGTH, D, K, RE, LAMBDA, LOAD_VEC_BRANCHES, JAC_DERIV_DM, JAC_DERIV_DP,
                                    JAC_DERIV_DP1, JAC_DERIV_DM_NODE, FROM_NODE, TO_NODE, TOUTINIT, AREA,
@@ -61,20 +64,37 @@ def calculate_derivatives_hydraulic(net,
     mask = ~np.isclose(re, 0) & ~np.isclose(branch_pit[:, LENGTH], 0, rtol=1e-10, atol=1e-11)
     k_over_D = branch_pit[mask, K] / branch_pit[mask, D]
     lambda_ = np.zeros_like(re)
-    lambda_[mask] = calc_lambda(
-        k_over_D,
-        re[mask],
-        friction_model,
-        options,
-    )
     der_lambda = np.zeros_like(re)
-    der_lambda[mask] = calc_der_lambda(
+
+    if friction_model == "colebrook":
+        friction_factor_model = Colebrook(
+            tolerance=options.get("tolerance_colebrook", 1e-4),
+            max_iter=options.get("max_iter_colebrook", 100),
+        )
+    elif friction_model == "swamee-jain":
+        friction_factor_model = SwameeJain()
+    else:
+        friction_factor_model = Nikuradse()
+
+    lambda_[mask], der_lambda[mask] = friction_factor_model.compute_lambda_and_dlambda_dm(
         k_over_D,
         re[mask],
         branch_pit[mask, MDOTINIT],
-        lambda_[mask],
-        friction_model,
     )
+
+    # lambda_[mask] = calc_lambda(
+    #     k_over_D,
+    #     re[mask],
+    #     friction_model,
+    #     options,
+    # )
+    # der_lambda[mask] = calc_der_lambda(
+    #     k_over_D,
+    #     re[mask],
+    #     branch_pit[mask, MDOTINIT],
+    #     lambda_[mask],
+    #     friction_model,
+    # )
 
     branch_pit[:, RE] = re
     branch_pit[:, LAMBDA] = lambda_
@@ -163,6 +183,81 @@ def get_derived_values(node_pit, from_nodes, to_nodes, use_numba):
         return calc_derived_values_numba(node_pit, from_nodes, to_nodes)
     from pandapipes.pf.derivative_toolbox import calc_derived_values_np
     return calc_derived_values_np(node_pit, from_nodes, to_nodes)
+
+
+class FrictionFactorModel(Protocol):
+
+    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m) -> tuple[npt.NDArray]: ...
+
+class SwameeJain(FrictionFactorModel):
+    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+        inv_re_09 = 1 / re**0.9
+        inner_log_term = k_over_D / 3.7 + 5.74 * inv_re_09
+        log_term = np.log(inner_log_term)
+        log_squared = log_term * log_term
+        log_cubed = log_squared * log_term
+
+        # a = 0.25 * ln(10)
+        a = 0.5756462732485114210044978636710910519003
+        lambda_ = a / log_squared
+
+        # a = 0.25 * ln(10)**2 * (-2) * 5.74 * (-0.9)
+        b = 13.69480281936570206128078428173834769740
+        dlambda_dm = b  * inv_re_09 / (log_cubed * inner_log_term * m)
+        return lambda_, dlambda_dm
+
+class Nikuradse(FrictionFactorModel):
+
+    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+        laminar = 64 / re
+        nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
+        lambda_ = laminar + nikuradse
+
+        # FIXME?: mathematically, der_lambda should be an odd function
+        # with m**2 the function is even
+        # return -64 / (re * m)
+        dlambda_dm = -64 / (re * np.abs(m))
+        return lambda_, dlambda_dm
+
+@dataclass
+class Colebrook(FrictionFactorModel):
+    tolerance: float = 1e-4
+    max_iter: int = 100
+
+    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+        # TODO: move this import to top level if possible
+        from pandapipes.pipeflow import PipeflowNotConverged
+
+        lambda_ = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
+
+        def colebrook_white_implicit(lambda_cb, k_over_D, re):
+            inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
+            return inv_lambda_sqrt + 2 * np.log10(2.51 / re * inv_lambda_sqrt + k_over_D / 3.71)
+
+        def cw_derivative(lambda_cb, k_over_D, re):
+            inv_lambda_sqrt = 1 / np.sqrt(lambda_cb)
+            inv_lambda_sqrt_cubed = inv_lambda_sqrt ** 3
+            return -0.5 * inv_lambda_sqrt_cubed - (2.51 / re) * inv_lambda_sqrt_cubed / (
+                        np.log(10) * (2.51 / re * inv_lambda_sqrt + k_over_D / 3.71))
+
+        res = newton(colebrook_white_implicit, lambda_, maxiter=self.max_iter, args=(k_over_D, re),
+                     tol=self.tolerance, full_output=True, fprime=cw_derivative)
+
+        if lambda_.size == 1:
+            lambda_ = res[0]
+            converged = res[1].converged
+        else:
+            lambda_ = res.root
+            converged = np.all(res.converged)
+
+        if not converged:
+            msg = "The Colebrook-White algorithm did not converge. There might be model inconsistencies. The maximum iterations can be given as 'max_iter_colebrook' argument to the pipeflow."
+            raise PipeflowNotConverged(msg)
+
+        ln10 = 2.302585092994045684017991454684364207601
+        u = k_over_D / 3.71 + 2.51 / (re * np.sqrt(lambda_))
+        dlambda_dm = -10.04 * lambda_ / ((ln10 * u * re + 5.02) * m)
+        return lambda_, dlambda_dm
 
 
 def calc_lambda(k_over_D, re, friction_model, options):
