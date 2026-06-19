@@ -40,7 +40,12 @@ class FrictionFactorModel(Protocol):
 
 @dataclass(slots=True)
 class SwameeJain(FrictionFactorModel):
-    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+    def compute_lambda_and_dlambda_dm(
+        self,
+        k_over_D: Float64_1D,
+        re: Float64_1D,
+        m: Float64_1D,
+    ) -> FrictionResult:
         inv_re_09 = 1 / re**0.9
         inner_log_term = k_over_D / 3.7 + 5.74 * inv_re_09
         log_term = np.log(inner_log_term)
@@ -59,7 +64,12 @@ class SwameeJain(FrictionFactorModel):
 
 @dataclass(slots=True)
 class Nikuradse(FrictionFactorModel):
-    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+    def compute_lambda_and_dlambda_dm(
+        self,
+        k_over_D: Float64_1D,
+        re: Float64_1D,
+        m: Float64_1D,
+    ) -> FrictionResult:
         laminar = 64 / re
         nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
         lambda_ = laminar + nikuradse
@@ -84,7 +94,12 @@ class Colebrook(FrictionFactorModel):
             msg = "'tolerance' should be > 0"
             raise ValueError(msg)
 
-    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+    def compute_lambda_and_dlambda_dm(
+        self,
+        k_over_D: Float64_1D,
+        re: Float64_1D,
+        m: Float64_1D,
+    ) -> FrictionResult:
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
 
@@ -136,7 +151,12 @@ class RegimeAwareFrictionFactor(FrictionFactorModel):
             msg = "Must have 0 < re_laminar < re_turbulent"
             raise ValueError(msg)
 
-    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
+    def compute_lambda_and_dlambda_dm(
+        self,
+        k_over_D: Float64_1D,
+        re: Float64_1D,
+        m: Float64_1D,
+    ) -> FrictionResult:
         lam = re <= self.re_laminar
         turb = re > self.re_turbulent
         trans = ~lam & ~turb
