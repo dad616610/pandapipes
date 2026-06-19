@@ -9,6 +9,7 @@ from pandapipes.pf import friction_factor_model as fm
 
 @pytest.fixture
 def model_payload():
+    """Typical input arrays (k_over_D, Re, mass flow) for a friction factor model."""
     dtype = np.float64
     return {
         "k_over_D": np.array([0.05], dtype=dtype),
@@ -31,6 +32,9 @@ def test_compute_lambda_and_dlambda_dm(
     expected_lambda,
     expected_dlambda_dm,
 ):
+    """Verify that each friction factor model gives the known correct
+    output (and derivative) for a standard input -- a regression test.
+    """
     model = model_class()
     lambda_, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
     np.testing.assert_allclose(lambda_, expected_lambda, atol=1e-6)
@@ -41,6 +45,9 @@ def MockRegimeAwareFrictionFactorModel(
     re_laminar=2300,
     re_turbulent=4000,
 ):
+    """Factory for a RegimeAwareFrictionFactorModel with typical sub‑models,
+    to reduce duplication in tests.
+    """
     return fm.RegimeAwareFrictionFactorModel(
         laminar=fm.Nikuradse(),
         transient=fm.SwameeJain(),
@@ -87,6 +94,27 @@ def test_friction_result_shape_and_dtype(
 @pytest.mark.parametrize(
     "model_class",
     (
+        fm.Nikuradse,
+        fm.SwameeJain,
+        fm.Colebrook,
+    ),
+)
+def test_lambda_is_even(model_class, model_payload):
+    """Test lambda(m) is an even function w.r.t. m.
+
+    lambda(m) should be an even function: f(-m) = f(m), since friction factor
+    should not be negative for negative flows.
+    """
+    model = model_class()
+    lambda_, _ = model.compute_lambda_and_dlambda_dm(**model_payload)
+    model_payload["m"] *= -1
+    lambda2, _ = model.compute_lambda_and_dlambda_dm(**model_payload)
+    np.testing.assert_allclose(lambda_, lambda2)
+
+
+@pytest.mark.parametrize(
+    "model_class",
+    (
         pytest.param(
             fm.Nikuradse,
             marks=pytest.mark.skip(reason="dlambda / dm is not odd yet"),
@@ -95,16 +123,23 @@ def test_friction_result_shape_and_dtype(
         fm.Colebrook,
     ),
 )
-def test_dlambda_dm_oddity(model_class, model_payload):
+def test_dlambda_dm_is_odd(model_class, model_payload):
+    """Test dlambda / dm is an odd function w.r.t. m.
+
+    Since lambda(m) is an even function, its derivative should be
+    an odd one: f(-m) = -f(m).
+    """
     model = model_class()
     _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
     model_payload["m"] *= -1
     _, dlambda_dm2 = model.compute_lambda_and_dlambda_dm(**model_payload)
-    np.testing.assert_allclose(dlambda_dm + dlambda_dm2, 0)
+    np.testing.assert_allclose(dlambda_dm, -dlambda_dm2)
 
 
 @dataclass(slots=True)
 class MockFrictionFactorModel(fm.FrictionFactorModel):
+    """A utility class, that returns predictable lambda and dlambda / dm."""
+
     res_value: float = 1
 
     def compute_lambda_and_dlambda_dm(
@@ -117,9 +152,12 @@ class MockFrictionFactorModel(fm.FrictionFactorModel):
         return res, res
 
 
-def test_regime_aware_friction_factor_model_compute_lambda_and_dlambda_dm(
+def test_regime_aware_friction_factor_model_respects_regimes_ranges(
     model_payload,
 ):
+    """Verify that the regime‑aware model delegates to the right sub‑model
+    depending on the Reynolds number, including boundary values.
+    """
     lam_value = 1
     trans_value = 2
     turb_value = 3
@@ -161,6 +199,9 @@ def test_regime_aware_friction_factor_model_compute_lambda_and_dlambda_dm(
 
 
 def test_regime_aware_friction_factor_model_incorrect_re_ranges():
+    """Ensure that constructing the model with invalid Re boundaries
+    (negative or reversed) raises a ValueError.
+    """
     mock = MockFrictionFactorModel(42)
     payload = {
         "laminar": mock,
@@ -176,6 +217,9 @@ def test_regime_aware_friction_factor_model_incorrect_re_ranges():
 
 
 def test_colebrook_convergence_failure(model_payload):
+    """Verify that the Colebrook model raises a PipeflowNotConverged error
+    when the iterative solution fails.
+    """
     from pandapipes.pipeflow import PipeflowNotConverged
 
     model = fm.Colebrook(max_iter=1, tolerance=1e-12)
@@ -185,6 +229,7 @@ def test_colebrook_convergence_failure(model_payload):
 
 @pytest.fixture
 def one_pipe_net():
+    """A simple one-pipe gas network."""
     net = pp.create_empty_network("", "lgas")
     pp.create_junctions(net, nr_junctions=2, pn_bar=1, tfluid_k=273.15)
     pp.create_ext_grid(net, junction=0, p_bar=1, t_k=273.15)
@@ -202,6 +247,9 @@ def one_pipe_net():
 
 
 def test_one_pipe_net(one_pipe_net, model_class):
+    """Integration test: pipeflow converges when using
+    each friction factor model (via the model_class fixture).
+    """
     model = model_class()
     pp.pipeflow(one_pipe_net, friction_model=model)
 
@@ -215,4 +263,7 @@ def test_one_pipe_net(one_pipe_net, model_class):
     ),
 )
 def test_friction_factor_model_as_string_still_works(one_pipe_net, model_name):
+    """Backward‑compatibility check: passing the friction model as a string
+    (e.g. 'colebrook') still works.
+    """
     pp.pipeflow(one_pipe_net, friction_model=model_name)
