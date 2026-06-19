@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypeAlias, runtime_checkable
 
 import numpy as np
-import numpy.typing as npt
 
 
 def get_friction_model(opts):
@@ -22,11 +21,21 @@ def get_friction_model(opts):
     return friction_factor_model
 
 
+Float64_1D: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
+FrictionResult: TypeAlias = tuple[
+    Float64_1D,
+    Float64_1D,
+]
+
+
 @runtime_checkable
 class FrictionFactorModel(Protocol):
     def compute_lambda_and_dlambda_dm(
-        self, k_over_D, re, m
-    ) -> tuple[npt.NDArray, npt.NDArray]: ...
+        self,
+        k_over_D: Float64_1D,
+        re: Float64_1D,
+        m: Float64_1D,
+    ) -> FrictionResult: ...
 
 
 @dataclass(slots=True)
@@ -114,67 +123,20 @@ class Colebrook(FrictionFactorModel):
         return lambda_curr, dlambda_dm
 
 
-_UNSET = object()
-
-
-def Orchestrator(
-    model=_UNSET,
-    *,
-    laminar=_UNSET,
-    transient=_UNSET,
-    turbulent=_UNSET,
-    re_laminar=2300,
-    re_turbulent=4000,
-):
-    if all(m is _UNSET for m in (laminar, transient, turbulent)):
-        if model is _UNSET:
-            return _SingleModel(Nikuradse())
-        return _SingleModel(model)
-
-    if not (0 < re_laminar < re_turbulent):
-        msg = "Must have 0 < re_laminar < re_turbulent"
-        raise ValueError(msg)
-
-    if any(m is _UNSET for m in (laminar, transient, turbulent)):
-        if model is not _UNSET:
-            msg = "Cannot combine 'model' with laminar/transient/turbulent."
-        else:
-            msg = "All of 'laminar', 'transient', 'turbulent' are required when using three models."
-        raise TypeError(msg)
-
-    return _MultiModel(
-        laminar=laminar,
-        transient=transient,
-        turbulent=turbulent,
-        re_laminar=re_laminar,
-        re_turbulent=re_turbulent,
-    )
-
-
-def _ensure_numpy_arrays(*args):
-    return map(np.asarray, args)
-
-
 @dataclass(slots=True)
-class _SingleModel:
-    model: FrictionFactorModel
-
-    def do(self, k_over_D, re, m):
-        k_over_D, re, m = _ensure_numpy_arrays(k_over_D, re, m)
-        return self.model.compute_lambda_and_dlambda_dm(k_over_D, re, m)
-
-
-@dataclass(slots=True)
-class _MultiModel:
+class RegimeAwareFrictionFactor(FrictionFactorModel):
     laminar: FrictionFactorModel
     transient: FrictionFactorModel
     turbulent: FrictionFactorModel
-    re_laminar: float
-    re_turbulent: float
+    re_laminar: float = 2300
+    re_turbulent: float = 4000
 
-    def do(self, k_over_D, re, m):
-        k_over_D, re, m = _ensure_numpy_arrays(k_over_D, re, m)
+    def __post_init__(self):
+        if not (0 < self.re_laminar < self.re_turbulent):
+            msg = "Must have 0 < re_laminar < re_turbulent"
+            raise ValueError(msg)
 
+    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m):
         lam = re <= self.re_laminar
         turb = re > self.re_turbulent
         trans = ~lam & ~turb
@@ -185,7 +147,7 @@ class _MultiModel:
         ]
 
         lambda_ = np.empty_like(re, dtype=np.float64)
-        dlambda_dm = np.empty_like(re, dtype=np.float64)
+        dlambda_dm = np.empty_like(lambda_)
         for mask, model in ranges:
             if mask.any():
                 lambda_[mask], dlambda_dm[mask] = model.compute_lambda_and_dlambda_dm(
