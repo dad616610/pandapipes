@@ -24,7 +24,9 @@ def get_friction_model(opts):
 
 @runtime_checkable
 class FrictionFactorModel(Protocol):
-    def compute_lambda_and_dlambda_dm(self, k_over_D, re, m) -> tuple[npt.NDArray]: ...
+    def compute_lambda_and_dlambda_dm(
+        self, k_over_D, re, m
+    ) -> tuple[npt.NDArray, npt.NDArray]: ...
 
 
 @dataclass(slots=True)
@@ -110,3 +112,86 @@ class Colebrook(FrictionFactorModel):
         ln10 = 2.302585092994045684017991454684364207601
         dlambda_dm = -10.04 * lambda_curr / ((ln10 * inner_log_term * re + 5.02) * m)
         return lambda_curr, dlambda_dm
+
+
+_UNSET = object()
+
+
+def Orchestrator(
+    model=_UNSET,
+    *,
+    laminar=_UNSET,
+    transient=_UNSET,
+    turbulent=_UNSET,
+    re_laminar=2300,
+    re_turbulent=4000,
+):
+    if all(m is _UNSET for m in (laminar, transient, turbulent)):
+        if model is _UNSET:
+            return _SingleModel(Nikuradse())
+        return _SingleModel(model)
+
+    if not (0 < re_laminar < re_turbulent):
+        msg = "Must have 0 < re_laminar < re_turbulent"
+        raise ValueError(msg)
+
+    if any(m is _UNSET for m in (laminar, transient, turbulent)):
+        if model is not _UNSET:
+            msg = "Cannot combine 'model' with laminar/transient/turbulent."
+        else:
+            msg = "All of 'laminar', 'transient', 'turbulent' are required when using three models."
+        raise TypeError(msg)
+
+    return _MultiModel(
+        laminar=laminar,
+        transient=transient,
+        turbulent=turbulent,
+        re_laminar=re_laminar,
+        re_turbulent=re_turbulent,
+    )
+
+
+def _ensure_numpy_arrays(*args):
+    return map(np.asarray, args)
+
+
+@dataclass(slots=True)
+class _SingleModel:
+    model: FrictionFactorModel
+
+    def do(self, k_over_D, re, m):
+        k_over_D, re, m = _ensure_numpy_arrays(k_over_D, re, m)
+        return self.model.compute_lambda_and_dlambda_dm(k_over_D, re, m)
+
+
+@dataclass(slots=True)
+class _MultiModel:
+    laminar: FrictionFactorModel
+    transient: FrictionFactorModel
+    turbulent: FrictionFactorModel
+    re_laminar: float
+    re_turbulent: float
+
+    def do(self, k_over_D, re, m):
+        k_over_D, re, m = _ensure_numpy_arrays(k_over_D, re, m)
+
+        lam = re <= self.re_laminar
+        turb = re > self.re_turbulent
+        trans = ~lam & ~turb
+        ranges = [
+            (lam, self.laminar),
+            (trans, self.transient),
+            (turb, self.turbulent),
+        ]
+
+        lambda_ = np.empty_like(re, dtype=np.float64)
+        dlambda_dm = np.empty_like(re, dtype=np.float64)
+        for mask, model in ranges:
+            if mask.any():
+                lambda_[mask], dlambda_dm[mask] = model.compute_lambda_and_dlambda_dm(
+                    k_over_D[mask],
+                    re[mask],
+                    m[mask],
+                )
+
+        return lambda_, dlambda_dm
