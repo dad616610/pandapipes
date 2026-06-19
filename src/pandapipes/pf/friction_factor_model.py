@@ -22,7 +22,7 @@ def get_friction_model(opts):
 
 
 Float64_1D: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
-FrictionResult: TypeAlias = tuple[
+FrictionFactorResult: TypeAlias = tuple[
     Float64_1D,
     Float64_1D,
 ]
@@ -35,7 +35,7 @@ class FrictionFactorModel(Protocol):
         k_over_D: Float64_1D,
         re: Float64_1D,
         m: Float64_1D,
-    ) -> FrictionResult: ...
+    ) -> FrictionFactorResult: ...
 
 
 @dataclass(slots=True)
@@ -45,7 +45,7 @@ class SwameeJain(FrictionFactorModel):
         k_over_D: Float64_1D,
         re: Float64_1D,
         m: Float64_1D,
-    ) -> FrictionResult:
+    ) -> FrictionFactorResult:
         inv_re_09 = 1 / re**0.9
         inner_log_term = k_over_D / 3.7 + 5.74 * inv_re_09
         log_term = np.log(inner_log_term)
@@ -69,7 +69,7 @@ class Nikuradse(FrictionFactorModel):
         k_over_D: Float64_1D,
         re: Float64_1D,
         m: Float64_1D,
-    ) -> FrictionResult:
+    ) -> FrictionFactorResult:
         laminar = 64 / re
         nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
         lambda_ = laminar + nikuradse
@@ -99,7 +99,7 @@ class Colebrook(FrictionFactorModel):
         k_over_D: Float64_1D,
         re: Float64_1D,
         m: Float64_1D,
-    ) -> FrictionResult:
+    ) -> FrictionFactorResult:
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
 
@@ -139,7 +139,7 @@ class Colebrook(FrictionFactorModel):
 
 
 @dataclass(slots=True)
-class RegimeAwareFrictionFactor(FrictionFactorModel):
+class RegimeAwareFrictionFactorModel(FrictionFactorModel):
     laminar: FrictionFactorModel
     transient: FrictionFactorModel
     turbulent: FrictionFactorModel
@@ -156,7 +156,7 @@ class RegimeAwareFrictionFactor(FrictionFactorModel):
         k_over_D: Float64_1D,
         re: Float64_1D,
         m: Float64_1D,
-    ) -> FrictionResult:
+    ) -> FrictionFactorResult:
         lam = re <= self.re_laminar
         turb = re > self.re_turbulent
         trans = ~lam & ~turb

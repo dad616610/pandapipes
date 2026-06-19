@@ -37,11 +37,11 @@ def test_compute_lambda_and_dlambda_dm(
     np.testing.assert_allclose(dlambda_dm, expected_dlambda_dm, atol=1e-6)
 
 
-def MockRegimeAwareFrictionFactor(
+def MockRegimeAwareFrictionFactorModel(
     re_laminar=2300,
     re_turbulent=4000,
 ):
-    return fm.RegimeAwareFrictionFactor(
+    return fm.RegimeAwareFrictionFactorModel(
         laminar=fm.Nikuradse(),
         transient=fm.SwameeJain(),
         turbulent=fm.Colebrook(),
@@ -55,7 +55,7 @@ def MockRegimeAwareFrictionFactor(
         fm.Nikuradse,
         fm.SwameeJain,
         fm.Colebrook,
-        MockRegimeAwareFrictionFactor,
+        MockRegimeAwareFrictionFactorModel,
     ]
 )
 def model_class(request):
@@ -104,7 +104,7 @@ def test_dlambda_dm_oddity(model_class, model_payload):
 
 
 @dataclass(slots=True)
-class MockFrictionModel(fm.FrictionFactorModel):
+class MockFrictionFactorModel(fm.FrictionFactorModel):
     res_value: float = 1
 
     def compute_lambda_and_dlambda_dm(
@@ -112,23 +112,25 @@ class MockFrictionModel(fm.FrictionFactorModel):
         k_over_D,
         re,
         m,
-    ) -> fm.FrictionResult:
+    ) -> fm.FrictionFactorResult:
         res = np.full_like(re, self.res_value)
         return res, res
 
 
-def test_regime_aware_friction_model_compute_lambda_and_dlambda_dm(model_payload):
+def test_regime_aware_friction_factor_model_compute_lambda_and_dlambda_dm(
+    model_payload,
+):
     lam_value = 1
     trans_value = 2
     turb_value = 3
     re_lam = 2300
     re_turb = 4000
-    model = fm.RegimeAwareFrictionFactor(
+    model = fm.RegimeAwareFrictionFactorModel(
         re_laminar=re_lam,
         re_turbulent=re_turb,
-        laminar=MockFrictionModel(lam_value),
-        transient=MockFrictionModel(trans_value),
-        turbulent=MockFrictionModel(turb_value),
+        laminar=MockFrictionFactorModel(lam_value),
+        transient=MockFrictionFactorModel(trans_value),
+        turbulent=MockFrictionFactorModel(turb_value),
     )
     model_payload.pop("re")
 
@@ -158,8 +160,8 @@ def test_regime_aware_friction_model_compute_lambda_and_dlambda_dm(model_payload
     _assert_lambda_and_dlambda_dm(re=re, expected_val=expected_val)
 
 
-def test_regime_aware_friction_factor_incorrect_re_ranges():
-    mock = MockFrictionModel(42)
+def test_regime_aware_friction_factor_model_incorrect_re_ranges():
+    mock = MockFrictionFactorModel(42)
     payload = {
         "laminar": mock,
         "transient": mock,
@@ -167,10 +169,10 @@ def test_regime_aware_friction_factor_incorrect_re_ranges():
     }
 
     with pytest.raises(ValueError, match="Must have 0 < re_laminar < re_turbulent"):
-        fm.RegimeAwareFrictionFactor(re_laminar=-1, re_turbulent=4000, **payload)
+        fm.RegimeAwareFrictionFactorModel(re_laminar=-1, re_turbulent=4000, **payload)
 
     with pytest.raises(ValueError, match="Must have 0 < re_laminar < re_turbulent"):
-        fm.RegimeAwareFrictionFactor(re_laminar=4000, re_turbulent=2000, **payload)
+        fm.RegimeAwareFrictionFactorModel(re_laminar=4000, re_turbulent=2000, **payload)
 
 
 def test_colebrook_convergence_failure(model_payload):
@@ -212,5 +214,5 @@ def test_one_pipe_net(one_pipe_net, model_class):
         "nikuradse",
     ),
 )
-def test_friction_model_as_string_still_works(one_pipe_net, model_name):
+def test_friction_factor_model_as_string_still_works(one_pipe_net, model_name):
     pp.pipeflow(one_pipe_net, friction_model=model_name)
