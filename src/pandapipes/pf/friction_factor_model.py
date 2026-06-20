@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from typing import Protocol, TypeAlias, runtime_checkable
+from typing import Callable, Protocol, TypeAlias, runtime_checkable
 
 import numpy as np
-
 
 Float64_1D: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
 FrictionFactorResult: TypeAlias = tuple[
@@ -64,12 +63,22 @@ class Nikuradse(FrictionFactorModel):
         return lambda_, dlambda_dm
 
 
+LambdaEstimator: TypeAlias = Callable[[Float64_1D, Float64_1D], Float64_1D]
+
+
+def _default_initial_estimator(k_over_D: Float64_1D, re: Float64_1D) -> Float64_1D:
+    return 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
+
+
 @dataclass(slots=True)
 class Colebrook(FrictionFactorModel):
+    initial_estimator: LambdaEstimator | None = None
     tolerance: float = 1e-4
     max_iter: int = 100
 
     def __post_init__(self):
+        if self.initial_estimator is None:
+            self.initial_estimator = _default_initial_estimator
         if not self.max_iter > 0:
             msg = "'max_iter' should be > 0"
             raise ValueError(msg)
@@ -86,7 +95,7 @@ class Colebrook(FrictionFactorModel):
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
 
-        lambda_prev = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
+        lambda_prev = self.initial_estimator(k_over_D, re)
         lambda_curr = lambda_prev
 
         a = k_over_D / 3.71

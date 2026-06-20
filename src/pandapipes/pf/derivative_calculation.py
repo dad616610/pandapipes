@@ -9,7 +9,6 @@ from pandapipes.idx_branch import (LENGTH, D, K, RE, LAMBDA, LOAD_VEC_BRANCHES, 
 from pandapipes.idx_node import TINIT as TINIT_NODE, INFEED, LOAD_T, JAC_DERIV_DT_N
 from pandapipes.pf.internals_toolbox import get_from_nodes_corrected, get_to_nodes_corrected
 from pandapipes.pf.pipeflow_setup import get_net_option, get_lookup
-from pandapipes.pf.friction_factor_model import get_friction_model
 from pandapipes.properties.fluids import get_fluid
 from pandapipes.properties.properties_toolbox import get_branch_real_density, get_branch_real_eta, get_branch_cp
 

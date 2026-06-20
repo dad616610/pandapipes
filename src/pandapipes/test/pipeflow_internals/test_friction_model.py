@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -225,6 +226,27 @@ def test_colebrook_convergence_failure(model_payload):
     model = fm.Colebrook(max_iter=1, tolerance=1e-12)
     with pytest.raises(PipeflowNotConverged):
         model.compute_lambda_and_dlambda_dm(**model_payload)
+
+
+def test_colebrook_estimator_called_once(model_payload):
+    """Verify that the initial estimator is called
+    exactly once per computation (not once per iteration).
+    """
+    estimators = (
+        Mock(side_effect=fm._default_initial_estimator),
+        Mock(side_effect=fm._default_initial_estimator),
+    )
+    for estimator in estimators:
+        model = fm.Colebrook(initial_estimator=estimator)
+        model.compute_lambda_and_dlambda_dm(**model_payload)
+        estimator.assert_called_once()
+
+    model = fm.Colebrook()
+    for estimator in estimators:
+        estimator.reset_mock()
+        model.initial_estimator = estimator
+        model.compute_lambda_and_dlambda_dm(**model_payload)
+        estimator.assert_called_once()
 
 
 @pytest.fixture
