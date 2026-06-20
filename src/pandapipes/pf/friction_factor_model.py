@@ -4,23 +4,6 @@ from typing import Protocol, TypeAlias, runtime_checkable
 import numpy as np
 
 
-def get_friction_model(opts):
-    model_key = opts["friction_model"]
-    if isinstance(model_key, FrictionFactorModel):
-        return model_key
-
-    if model_key == "colebrook":
-        friction_factor_model = Colebrook(
-            tolerance=opts.get("tolerance_colebrook", 1e-4),
-            max_iter=opts.get("max_iter_colebrook", 100),
-        )
-    elif model_key == "swamee-jain":
-        friction_factor_model = SwameeJain()
-    else:
-        friction_factor_model = Nikuradse()
-    return friction_factor_model
-
-
 Float64_1D: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
 FrictionFactorResult: TypeAlias = tuple[
     Float64_1D,

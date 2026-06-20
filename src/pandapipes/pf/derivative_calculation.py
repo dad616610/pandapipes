@@ -69,9 +69,9 @@ def calculate_derivatives_hydraulic(net,
     k_over_D = branch_pit[mask, K] / branch_pit[mask, D]
     lambda_ = np.zeros_like(re)
     der_lambda = np.zeros_like(re)
-    friction_model = get_friction_model(options)
+    friction_factor_model = options["friction_model"]
     lambda_[mask], der_lambda[mask] = (
-        friction_model.compute_lambda_and_dlambda_dm(
+        friction_factor_model.compute_lambda_and_dlambda_dm(
             k_over_D,
             re[mask],
             branch_pit[mask, MDOTINIT],

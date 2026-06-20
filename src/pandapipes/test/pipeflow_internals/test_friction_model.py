@@ -255,15 +255,20 @@ def test_one_pipe_net(one_pipe_net, model_class):
 
 
 @pytest.mark.parametrize(
-    "model_name",
+    "model_name, expected_model_class",
     (
-        "colebrook",
-        "swamee-jain",
-        "nikuradse",
+        ("colebrook", fm.Colebrook),
+        ("swamee-jain", fm.SwameeJain),
+        ("nikuradse", fm.Nikuradse),
     ),
 )
-def test_friction_factor_model_as_string_still_works(one_pipe_net, model_name):
+def test_friction_factor_model_as_string_still_works(
+    one_pipe_net,
+    model_name,
+    expected_model_class,
+):
     """Backward‑compatibility check: passing the friction model as a string
     (e.g. 'colebrook') still works.
     """
     pp.pipeflow(one_pipe_net, friction_model=model_name)
+    assert isinstance(one_pipe_net["_options"]["friction_model"], expected_model_class)
