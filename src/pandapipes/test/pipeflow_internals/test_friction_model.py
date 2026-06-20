@@ -23,7 +23,7 @@ def model_payload():
     "model_class, expected_lambda, expected_dlambda_dm",
     (
         (fm.Nikuradse, 0.103461, -0.032),
-        (fm.SwameeJain, 0.037277, -0.012279),
+        (fm.SwameeJain, 0.085836, -0.012279),
         (fm.Colebrook, 0.081818, -0.009411),
     ),
 )

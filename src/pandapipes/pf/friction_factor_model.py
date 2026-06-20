@@ -34,8 +34,8 @@ class SwameeJain(FrictionFactorModel):
         log_squared = log_term * log_term
         log_cubed = log_squared * log_term
 
-        # a = 0.25 * ln(10)
-        a = 0.5756462732485114210044978636710910519003
+        # a = 0.25 * ln(10)**2
+        a = 1.325474527619599502640416597148504422899
         lambda_ = a / log_squared
 
         # a = 0.25 * ln(10)**2 * (-2) * 5.74 * (-0.9)
