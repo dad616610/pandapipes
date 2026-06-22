@@ -294,7 +294,7 @@ class Colebrook(FrictionFactorModel):
             lambda_prev = lambda_curr
         else:
             msg = (
-                "The Colebrook-White algorithm did not converge. "
+                "The Colebrook algorithm did not converge. "
                 "There might be model inconsistencies. The maximum iterations "
                 "can be given as 'max_iter_colebrook' argument to the pipeflow."
             )
