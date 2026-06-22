@@ -238,8 +238,10 @@ def init_options(net, **kwargs):
         - **ambient_temperature** (float): 293.0 - The assumed ambient temperature for the\
                 calculation of the barometric formula
 
-        - **friction_model** (str): "nikuradse" - The friction model that shall be used to identify\
-                the value for lambda (can be "nikuradse" or "colebrook")
+        - **friction_model** (FrictionFactorModel): ``pp.Nikuradse()`` - The friction model\
+                used to compute the Darcy‑Weisbach friction factor :math:`\lambda`\
+                (e.g., ``pp.SwameeJain()``, ``pp.Colebrook()``, or\
+                ``pp.RegimeAwareFrictionFactorModel()``).
 
         - **alpha** (float): 1 - The step width for the Newton iterations. If the Newton steps \
                 shall be damped, **alpha** can be reduced. See also the **nonlinear_method** \
