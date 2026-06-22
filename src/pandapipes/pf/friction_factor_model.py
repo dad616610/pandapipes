@@ -210,6 +210,12 @@ class Colebrook(FrictionFactorModel):
         below this value.
     :param max_iter:
         Maximum number of Newton‑Raphson iterations allowed.
+
+    Examples:
+        Use custom ``initial_estimator``:
+
+        >>> import pandapipes as pp
+        >>> colebrook = pp.Colebrook(initial_estimator=lambda k_over_D, re: 64 / re)
     """
 
     initial_estimator: LambdaEstimator | None = None
