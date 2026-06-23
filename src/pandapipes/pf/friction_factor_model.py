@@ -95,7 +95,6 @@ class SwameeJain(FrictionFactorModel):
             \lambda = \frac{0.25}{\left[\log_{10}(x)\right]^2}
                     = \frac{a}{(\ln x)^2},
 
-
         where:
 
         .. math::
