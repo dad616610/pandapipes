@@ -36,7 +36,6 @@ dependencies = [
     "pandapower == 3.3.3",
     "matplotlib",
     "shapely",
-    "sphinx-autobuild[docs]>=2024.10.3",
 ]
 keywords = [
     "network", "analysis", "optimization", "automation", "grid", "energy", "engineering",
