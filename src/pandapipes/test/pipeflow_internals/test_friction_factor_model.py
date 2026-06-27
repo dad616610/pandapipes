@@ -138,6 +138,39 @@ def test_dlambda_dm_is_odd(model_class, model_payload):
     _, dlambda_dm2 = model.compute_lambda_and_dlambda_dm(**model_payload)
     np.testing.assert_allclose(-dlambda_dm, dlambda_dm2)
 
+@pytest.mark.parametrize(
+    "model_class",
+    (
+        pytest.param(
+            fm.Nikuradse,
+            marks=pytest.mark.skip(reason="dlambda / dm is not correct yet"),
+        ),
+        fm.SwameeJain,
+        fm.Colebrook,
+    ),
+)
+def test_lambda_decreases_as_Re_increases(model_class, model_payload):
+    """Test lambda(m) decreases as Re increases.
+
+    Experiments show (e.g. Moody chart), that with increasing Re, lambda decreases.
+
+    lambda(m) = lambda(Re), with Re proportional to |m|, therefore
+    dlambda_dm = dlambda_dRe * dRe_dm.
+
+    "lambda decreases as Re increases" means, that dlambda_dRe < 0 (by definition).
+    For m > 0, dRe_dm > 0, therefore dlambda_dm = dlambda_dRe * dRe_dm < 0.
+
+    Since dlambda_dm is an odd function, for m < 0 it should be > 0.
+    """
+    model = model_class()
+    model_payload["m"] = 1
+    _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
+    np.testing.assert_allclose(dlambda_dm < 0, True)
+
+    model_payload["m"] = -1
+    _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
+    np.testing.assert_allclose(dlambda_dm > 0, True)
+
 
 @dataclass(slots=True)
 class MockFrictionFactorModel(fm.FrictionFactorModel):
