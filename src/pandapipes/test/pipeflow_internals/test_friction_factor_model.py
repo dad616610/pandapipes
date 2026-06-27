@@ -130,13 +130,13 @@ def test_dlambda_dm_is_odd(model_class, model_payload):
     """Test dlambda / dm is an odd function w.r.t. m.
 
     Since lambda(m) is an even function, its derivative should be
-    an odd one: f(-m) = -f(m).
+    an odd one: -f(m) = f(-m).
     """
     model = model_class()
     _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
     model_payload["m"] *= -1
     _, dlambda_dm2 = model.compute_lambda_and_dlambda_dm(**model_payload)
-    np.testing.assert_allclose(dlambda_dm, -dlambda_dm2)
+    np.testing.assert_allclose(-dlambda_dm, dlambda_dm2)
 
 
 @dataclass(slots=True)
