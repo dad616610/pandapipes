@@ -100,17 +100,19 @@ def test_friction_result_shape_and_dtype(
         fm.Colebrook,
     ),
 )
-def test_lambda_is_even(model_class, model_payload):
-    """Test lambda(m) is an even function w.r.t. m.
+def test_lambda_independent_of_explicit_m(model_class, model_payload):
+    """Test lambda(m) depends only on Re and k_over_D.
 
-    lambda(m) should be an even function: f(-m) = f(m), since friction factor
-    should not be negative for negative flows.
+    lambda(m) should be not depend on the explicitly passed m:
+    it's used only for derivative computation.
     """
     model = model_class()
-    lambda_, _ = model.compute_lambda_and_dlambda_dm(**model_payload)
-    model_payload["m"] *= -1
-    lambda2, _ = model.compute_lambda_and_dlambda_dm(**model_payload)
-    np.testing.assert_allclose(lambda_, lambda2)
+    model_payload["m"] = np.array([0.1, 1, 10, 100, 1000])
+    lambdas, _ = model.compute_lambda_and_dlambda_dm(**model_payload)
+
+    lambda0 = lambdas[0]
+    for lambda_ in lambdas[1:]:
+        np.testing.assert_allclose(lambda0, lambda_)
 
 
 @pytest.mark.parametrize(
