@@ -23,8 +23,10 @@ in the Newton‑Raphson solver.
 
     Its derivative :math:`\frac{\mathrm{d}\lambda}{\mathrm{d}\dot{m}}`
     is therefore an odd function – it changes sign when the flow direction reverses.
-    The negative sign for positive :math:`\dot{m}` reflects that the friction factor
-    decreases with increasing Reynolds number.
+
+    Since :math:`\lambda` decreases as the Reynolds number increases
+    (as seen in the Moody chart), :math:`\frac{\mathrm{d}\lambda}{\mathrm{d}\dot{m}}`
+    must be negative for positive mass flow.
 
 
 .. autoclass:: FrictionFactorModel
