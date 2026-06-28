@@ -285,7 +285,7 @@ class Colebrook(FrictionFactorModel):
         for _ in range(self.max_iter):
             inv_lambda_sqrt = 1 / np.sqrt(lambda_curr)
             inner_log_term = a + b * inv_lambda_sqrt
-            cubed_inv_lambda_sqrt = inv_lambda_sqrt**3
+            cubed_inv_lambda_sqrt = inv_lambda_sqrt * inv_lambda_sqrt * inv_lambda_sqrt
 
             f = inv_lambda_sqrt + 2 * np.log10(inner_log_term)
             df = (
