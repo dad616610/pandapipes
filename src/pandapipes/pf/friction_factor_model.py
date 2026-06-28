@@ -18,6 +18,7 @@ Each model also computes the derivative
 of the friction factor with respect to mass flow. This derivative is essential
 for building the Jacobian matrix in the Newton‑Raphson pipe flow solver.
 """
+
 # needed to preserve typealiases in the docs
 from __future__ import annotations
 
@@ -275,15 +276,13 @@ class Colebrook(FrictionFactorModel):
         # TODO: move this import to top level if possible
         from pandapipes.pipeflow import PipeflowNotConverged
 
-        lambda_prev = self.initial_estimator(k_over_D, re)
-        lambda_curr = lambda_prev
-
+        lambda_ = self.initial_estimator(k_over_D, re)
         a = k_over_D / 3.71
         b = 2.51 / re
         # 1 / ln(10)
         inv_ln10 = 0.4342944819032518276511289189166050822944
         for _ in range(self.max_iter):
-            inv_lambda_sqrt = 1 / np.sqrt(lambda_curr)
+            inv_lambda_sqrt = 1 / np.sqrt(lambda_)
             inner_log_term = a + b * inv_lambda_sqrt
             cubed_inv_lambda_sqrt = inv_lambda_sqrt * inv_lambda_sqrt * inv_lambda_sqrt
 
@@ -292,11 +291,10 @@ class Colebrook(FrictionFactorModel):
                 -0.5 * cubed_inv_lambda_sqrt
                 - b * cubed_inv_lambda_sqrt * inv_ln10 / inner_log_term
             )
-
-            lambda_curr = lambda_prev - f / df
-            if np.all(np.abs(lambda_curr - lambda_prev) < self.tolerance):
+            step = f / df
+            lambda_ -= step
+            if np.all(np.abs(step) < self.tolerance):
                 break
-            lambda_prev = lambda_curr
         else:
             msg = (
                 "The Colebrook algorithm did not converge. "
@@ -304,10 +302,9 @@ class Colebrook(FrictionFactorModel):
                 "can be given as 'max_iter_colebrook' argument to the pipeflow."
             )
             raise PipeflowNotConverged(msg)
-
         ln10 = 2.302585092994045684017991454684364207601
-        dlambda_dm = -10.04 * lambda_curr / ((ln10 * inner_log_term * re + 5.02) * m)
-        return lambda_curr, dlambda_dm
+        dlambda_dm = -10.04 * lambda_ / ((ln10 * inner_log_term * re + 5.02) * m)
+        return lambda_, dlambda_dm
 
 
 @dataclass(slots=True)
