@@ -256,7 +256,7 @@ def test_colebrook_convergence_failure(model_payload):
     """Verify that the Colebrook model raises a PipeflowNotConverged error
     when the iterative solution fails.
     """
-    from pandapipes.pipeflow import PipeflowNotConverged
+    from pandapipes.pf.pipeflow_setup import PipeflowNotConverged
 
     model = fm.Colebrook(max_iter=1, tolerance=1e-12)
     with pytest.raises(PipeflowNotConverged):

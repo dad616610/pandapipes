@@ -55,12 +55,13 @@ def calculate_derivatives_hydraulic(net, branch_pit_slice, node_pit, options):
 
     rho = get_branch_real_density(fluid, node_pit, b_pit)
     eta = get_branch_real_eta(fluid, node_pit, b_pit, p_m)
+    area = branch_area(b_pit)
 
     # Darcy Friction factor: lambda
     re = (
         np.abs(b_pit[:, IdxBranch.MDOTINIT])
         * b_pit[:, IdxBranch.D]
-        / (eta * b_pit[:, IdxBranch.AREA])
+        / (eta * area)
     )
     mask = (
         ~np.isclose(re, 0)
@@ -81,7 +82,6 @@ def calculate_derivatives_hydraulic(net, branch_pit_slice, node_pit, options):
     b_pit[:, IdxBranch.RE]     = re
     b_pit[:, IdxBranch.LAMBDA] = lambda_
 
-    area = b_pit[:, IdxBranch.AREA]
     if not gas_mode:
         residual_vec, residual_vec_nodes_from, residual_vec_nodes_to, df_dm, df_dm_nodes, df_dp, df_dp1, dp_frict_loss = (
             derivatives_hydraulic_incomp(b_pit, der_lambda, p_init_i_abs, p_init_i1_abs, height_difference, rho, area))

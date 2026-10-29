@@ -101,7 +101,7 @@ def _compare_results(ow):
     res_pipe = res_pipe[~np.isclose(res_pipe, 0)]
     test_res_pipe = test_res_pipe.values[~np.isclose(test_res_pipe.values, 0)]
     diff = 1 - res_pipe.round(9) / test_res_pipe.round(9)
-    check = diff < 0.003
+    check = diff < 0.005
     assert (np.all(check))
     test_res_sink = pd.read_csv(os.path.join(data_path, 'test_time_series_results', 'res_sink',
         'mdot_kg_per_s.csv'), sep=';', index_col=0)

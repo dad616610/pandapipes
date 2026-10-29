@@ -240,7 +240,7 @@ def calc_medium_pressure_with_derivative_np(p_init_i_abs, p_init_i1_abs):
 
 
 def calc_derived_values_np(node_pit, from_nodes, to_nodes):
-    tinit_branch = (node_pit[from_nodes, IdxNode.TINIT_NODE] + node_pit[to_nodes, IdxNode.TINIT_NODE]) / 2
+    tinit_branch = (node_pit[from_nodes, IdxNode.TINIT] + node_pit[to_nodes, IdxNode.TINIT]) / 2
     height_difference = node_pit[from_nodes, IdxNode.HEIGHT] - node_pit[to_nodes, IdxNode.HEIGHT]
     p_init_i_abs = node_pit[from_nodes, IdxNode.PINIT] + node_pit[from_nodes, IdxNode.PAMB]
     p_init_i1_abs = node_pit[to_nodes, IdxNode.PINIT] + node_pit[to_nodes, IdxNode.PAMB]
