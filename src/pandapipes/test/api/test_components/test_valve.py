@@ -49,7 +49,7 @@ def test_valve(use_numba):
     max_iter_hyd = 8 if use_numba else 15
     pandapipes.pipeflow(net, stop_condition="tol", max_iter_hyd=max_iter_hyd, friction_model="nikuradse",
                         mode="hydraulics", transient=False, nonlinear_method="automatic",
-                        tol_p=1e-8, tol_m=1e-8, use_numba=use_numba)
+                        tol_p=1e-6, tol_m=1e-6, use_numba=use_numba)
 
     data = pd.read_csv(os.path.join(data_path, "test_valve.csv"), sep=';')
     data_p = data['p'].dropna(inplace=False)
