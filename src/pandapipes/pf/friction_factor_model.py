@@ -176,10 +176,7 @@ class Nikuradse(FrictionFactorModel):
         nikuradse = 1 / (-2 * np.log10(k_over_D / 3.71)) ** 2
         lambda_ = laminar + nikuradse
 
-        # FIXME?: mathematically, dlambda / dm should be an odd function,
-        # but with m**2 the function is even
-        # return -64 / (re * m)
-        dlambda_dm = -64 / (re * np.abs(m))
+        dlambda_dm = -64 / (re * m)
         return lambda_, dlambda_dm
 
 
@@ -274,7 +271,7 @@ class Colebrook(FrictionFactorModel):
             - \frac{10.04\,\lambda}{m\left(\ln(10)\,Re\,x + 5.02\right)}.
         """
         # TODO: move this import to top level if possible
-        from pandapipes.pipeflow import PipeflowNotConverged
+        from pandapipes.pf.pipeflow_setup import PipeflowNotConverged
 
         lambda_ = self.initial_estimator(k_over_D, re)
         a = k_over_D / 3.71
