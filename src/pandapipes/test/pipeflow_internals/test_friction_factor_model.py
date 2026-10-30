@@ -103,26 +103,16 @@ def test_dlambda_dm_is_odd(model_class, model_payload):
 
 
 def test_lambda_decreases_as_Re_increases(model_class, model_payload):
-    """Test lambda(m) decreases as Re increases.
-
-    Experiments show (e.g. Moody chart), that with increasing Re, lambda decreases.
-
-    lambda(m) = lambda(Re), with Re proportional to |m|, therefore
-    dlambda_dm = dlambda_dRe * dRe_dm.
-
-    "lambda decreases as Re increases" means, that dlambda_dRe < 0 (by definition).
-    For m > 0, dRe_dm > 0, therefore dlambda_dm = dlambda_dRe * dRe_dm < 0.
-
-    Since dlambda_dm is an odd function, for m < 0 it should be > 0.
-    """
+    """lambda decreases as Re increases, as observed experimentally (Moody chart)."""
     model = model_class()
-    model_payload["m"] = 1
-    _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
-    np.testing.assert_allclose(dlambda_dm < 0, True)
-
-    model_payload["m"] = -1
-    _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
-    np.testing.assert_allclose(dlambda_dm > 0, True)
+    re = np.array((5_000, 10_000, 100_000, 1_000_000), dtype=np.float64)
+    payload = {
+        "re": re,
+        "k_over_D": np.full_like(re, model_payload["k_over_D"]),
+        "m": np.full_like(re, model_payload["m"]),
+    }
+    lambdas, _ = model.compute_lambda_and_dlambda_dm(**payload)
+    assert all(np.diff(lambdas) < 0), lambdas
 
 
 def test_colebrook_convergence_failure(model_payload):
