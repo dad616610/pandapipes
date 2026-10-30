@@ -211,58 +211,60 @@ def set_user_pf_options(net, reset=False, **kwargs):
 
 
 def init_options(net, **kwargs):
-    r"""Initializes physical and mathematical constants included in pandapipes. In addition, options for the nonlinear and time-dependent solver are also set.
+    r"""Initializes physical and mathematical constants included in pandapipes.
+    In addition, options for the nonlinear and time-dependent solver are also set.
 
     Those are the options that can be set and their default values:
 
-        - **max_iter_hyd** (int): 10 - If the hydraulics simulation is terminated after a certain amount of \
-                               iterations, this is the number of iterations.
+    - **max_iter_hyd** (int): 10 - If the hydraulics simulation is terminated after a
+      certain amount of iterations, this is the number of iterations.
 
-        - **max_iter_therm** (int): 10 - If the thermal simulation is terminated after a certain amount of \
-                               iterations, this is the number of iterations.
+    - **max_iter_therm** (int): 10 - If the thermal simulation is terminated after a
+      certain amount of iterations, this is the number of iterations.
 
-        - **tol_p** (float): 1e-4 - The relative tolerance for the pressure. A result is accepted \
-                                    if the relative error is smaller than this factor.
+    - **tol_p** (float): 1e-4 - The relative tolerance for the pressure. A result is
+      accepted if the relative error is smaller than this factor.
 
-        - **tol_m** (float): 1e-4 - The relative tolerance for the velocity. A result is accepted \
-                                    if the relative error is smaller than this factor.
+    - **tol_m** (float): 1e-4 - The relative tolerance for the velocity. A result is
+      accepted if the relative error is smaller than this factor.
 
-        - **tol_T** (float): 1e-4 - The relative tolerance for the temperature. A result is \
-                                    accepted if the relative error is smaller than this factor.
+    - **tol_T** (float): 1e-4 - The relative tolerance for the temperature. A result is
+      accepted if the relative error is smaller than this factor.
 
-        - **tol_res** (float): 1e-3 - The relative tolerance for the residual. A result is accepted\
-                                      if the relative error is smaller than this factor.
+    - **tol_res** (float): 1e-3 - The relative tolerance for the residual. A result is
+      accepted if the relative error is smaller than this factor.
 
-        - **ambient_temperature** (float): 293.0 - The assumed ambient temperature for the\
-                calculation of the barometric formula
+    - **ambient_temperature** (float): 293.0 - The assumed ambient temperature for the
+      calculation of the barometric formula
 
-        - **friction_model** (FrictionFactorModel): ``pp.Nikuradse()`` - The friction model\
-                used to compute the Darcy‑Weisbach friction factor :math:`\lambda`.\
-                See :ref:`friction_factor_models` for the full list of built-in and custom options.
+    - **friction_model** (FrictionFactorModel): ``pp.Nikuradse()`` - The friction model
+      used to compute the Darcy-Weisbach friction factor :math:`\lambda`. See
+      :ref:`friction_factor_models` for the full list of built-in and custom options.
 
-        - **alpha** (float): 1 - The step width for the Newton iterations. If the Newton steps \
-                shall be damped, **alpha** can be reduced. See also the **nonlinear_method** \
-                parameter.
+    - **alpha** (float): 1 - The step width for the Newton iterations. If the Newton
+      steps shall be damped, **alpha** can be reduced. See also the
+      **nonlinear_method** parameter.
 
-        - **nonlinear_method** (str): "constant" - The option of how the damping factor **alpha** \
-                is determined in each iteration. It can be "constant" (i.e. **alpha** is always the\
-                 same in each iteration) or "automatic", in which case **alpha** is adapted \
-                 automatically with respect to the convergence behaviour.
+    - **nonlinear_method** (str): "constant" - The option of how the damping factor
+      **alpha** is determined in each iteration. It can be "constant" (i.e. **alpha**
+      is always the same in each iteration) or "automatic", in which case **alpha** is
+      adapted automatically with respect to the convergence behaviour.
 
-        - **mode** (str): "hydraulics" - Define the calculation mode: what shall be calculated - \
-                solely hydraulics ('hydraulics'), solely heat transfer('heat') or both combined sequentially \
-                ('sequential') or bidirectionally ('bidirectional').
+    - **mode** (str): "hydraulics" - Define the calculation mode: what shall be
+      calculated - solely hydraulics ('hydraulics'), solely heat transfer ('heat') or
+      both combined sequentially ('sequential') or bidirectionally ('bidirectional').
 
-        - **check_connectivity** (bool): True - If True, a connectivity check is performed at the\
-                beginning of the pipeflow and parts of the net that are not connected to external\
-                grids are set inactive.
+    - **check_connectivity** (bool): True - If True, a connectivity check is performed
+      at the beginning of the pipeflow and parts of the net that are not connected to
+      external grids are set inactive.
 
-        - **quit_on_inconsistency_connectivity** (bool): False - If True, inconsistencies in the\
-                connectivity check raise an error, otherwise they are handled. Inconsistencies mean\
-                that out of service nodes are connected to in service branches. If that is the case\
-                and the flag is set to False, the connected nodes are activated.
+    - **quit_on_inconsistency_connectivity** (bool): False - If True, inconsistencies in
+      the connectivity check raise an error, otherwise they are handled. Inconsistencies
+      mean that out of service nodes are connected to in service branches. If that is
+      the case and the flag is set to False, the connected nodes are activated.
 
-        - **use_numba** (bool): True - If True, use numba for more efficient internal calculations
+    - **use_numba** (bool): True - If True, use numba for more efficient internal
+      calculations
 
     :param net: The pandapipesNet for which the options are initialized
     :type net: pandapipesNet
