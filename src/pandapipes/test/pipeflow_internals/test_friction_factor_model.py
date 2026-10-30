@@ -63,7 +63,6 @@ def MockRegimeAwareFrictionFactorModel(
         fm.Nikuradse,
         fm.SwameeJain,
         fm.Colebrook,
-        MockRegimeAwareFrictionFactorModel,
     ]
 )
 def model_class(request):
@@ -71,6 +70,15 @@ def model_class(request):
     return request.param
 
 
+@pytest.mark.parametrize(
+    "model_class",
+    (
+        fm.Nikuradse,
+        fm.SwameeJain,
+        fm.Colebrook,
+        MockRegimeAwareFrictionFactorModel,
+    ),
+)
 def test_friction_result_shape_and_dtype(
     model_class,
     model_payload,
@@ -92,14 +100,6 @@ def test_friction_result_shape_and_dtype(
         assert param.shape == re.shape
 
 
-@pytest.mark.parametrize(
-    "model_class",
-    (
-        fm.Nikuradse,
-        fm.SwameeJain,
-        fm.Colebrook,
-    ),
-)
 def test_lambda_independent_of_explicit_m(model_class, model_payload):
     """Test lambda(m) depends only on Re and k_over_D.
 
@@ -115,17 +115,6 @@ def test_lambda_independent_of_explicit_m(model_class, model_payload):
         np.testing.assert_allclose(lambda0, lambda_)
 
 
-@pytest.mark.parametrize(
-    "model_class",
-    (
-        pytest.param(
-            fm.Nikuradse,
-            marks=pytest.mark.skip(reason="dlambda / dm is not odd yet"),
-        ),
-        fm.SwameeJain,
-        fm.Colebrook,
-    ),
-)
 def test_dlambda_dm_is_odd(model_class, model_payload):
     """Test dlambda / dm is an odd function w.r.t. m.
 
@@ -138,17 +127,7 @@ def test_dlambda_dm_is_odd(model_class, model_payload):
     _, dlambda_dm2 = model.compute_lambda_and_dlambda_dm(**model_payload)
     np.testing.assert_allclose(-dlambda_dm, dlambda_dm2)
 
-@pytest.mark.parametrize(
-    "model_class",
-    (
-        pytest.param(
-            fm.Nikuradse,
-            marks=pytest.mark.skip(reason="dlambda / dm is not correct yet"),
-        ),
-        fm.SwameeJain,
-        fm.Colebrook,
-    ),
-)
+
 def test_lambda_decreases_as_Re_increases(model_class, model_payload):
     """Test lambda(m) decreases as Re increases.
 
