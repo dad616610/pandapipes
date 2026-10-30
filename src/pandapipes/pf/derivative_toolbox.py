@@ -245,15 +245,3 @@ def calc_derived_values_np(node_pit, from_nodes, to_nodes):
     p_init_i_abs = node_pit[from_nodes, IdxNode.PINIT] + node_pit[from_nodes, IdxNode.PAMB]
     p_init_i1_abs = node_pit[to_nodes, IdxNode.PINIT] + node_pit[to_nodes, IdxNode.PAMB]
     return tinit_branch, height_difference, p_init_i_abs, p_init_i1_abs
-
-def _branches_not_zero_flow(branch_pit):
-    """
-    Simple function to identify branches with flow based on the calculated velocity.
-
-    :param branch_pit: The pandapipes internal table of the network (including hydraulics results)
-    :type branch_pit: np.array
-    :return: branches_connected_flow - lookup array if branch is connected wrt. flow
-    :rtype: np.array
-    """
-    # TODO: is this formulation correct or could there be any caveats?
-    return ~np.isnan(branch_pit[:, IdxBranch.MDOTINIT]) & ~np.isclose(branch_pit[:, IdxBranch.MDOTINIT], 0, rtol=1e-10, atol=1e-10)
