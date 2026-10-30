@@ -49,9 +49,6 @@ There are several models provided in pandapipes by default.
 .. autoclass:: Colebrook
     :members:
 
-.. autoclass:: RegimeAwareFrictionFactorModel
-    :members:
-
 
 .. _custom_friction_factor_models:
 

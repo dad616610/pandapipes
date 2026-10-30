@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from unittest.mock import Mock
 
 import numpy as np
@@ -42,22 +41,6 @@ def test_compute_lambda_and_dlambda_dm(
     np.testing.assert_allclose(dlambda_dm, expected_dlambda_dm, atol=1e-6)
 
 
-def MockRegimeAwareFrictionFactorModel(
-    re_laminar=2300,
-    re_turbulent=4000,
-):
-    """Factory for a RegimeAwareFrictionFactorModel with typical sub‑models,
-    to reduce duplication in tests.
-    """
-    return fm.RegimeAwareFrictionFactorModel(
-        laminar=fm.Nikuradse(),
-        transient=fm.SwameeJain(),
-        turbulent=fm.Colebrook(),
-        re_laminar=re_laminar,
-        re_turbulent=re_turbulent,
-    )
-
-
 @pytest.fixture(
     params=[
         fm.Nikuradse,
@@ -70,15 +53,6 @@ def model_class(request):
     return request.param
 
 
-@pytest.mark.parametrize(
-    "model_class",
-    (
-        fm.Nikuradse,
-        fm.SwameeJain,
-        fm.Colebrook,
-        MockRegimeAwareFrictionFactorModel,
-    ),
-)
 def test_friction_result_shape_and_dtype(
     model_class,
     model_payload,
@@ -149,86 +123,6 @@ def test_lambda_decreases_as_Re_increases(model_class, model_payload):
     model_payload["m"] = -1
     _, dlambda_dm = model.compute_lambda_and_dlambda_dm(**model_payload)
     np.testing.assert_allclose(dlambda_dm > 0, True)
-
-
-@dataclass(slots=True)
-class MockFrictionFactorModel(fm.FrictionFactorModel):
-    """A utility class, that returns predictable lambda and dlambda / dm."""
-
-    res_value: float = 1
-
-    def compute_lambda_and_dlambda_dm(
-        self,
-        k_over_D,
-        re,
-        m,
-    ) -> fm.FrictionFactorResult:
-        res = np.full_like(re, self.res_value)
-        return res, res
-
-
-def test_regime_aware_friction_factor_model_respects_regimes_ranges(
-    model_payload,
-):
-    """Verify that the regime‑aware model delegates to the right sub‑model
-    depending on the Reynolds number, including boundary values.
-    """
-    lam_value = 1
-    trans_value = 2
-    turb_value = 3
-    re_lam = 2300
-    re_turb = 4000
-    model = fm.RegimeAwareFrictionFactorModel(
-        re_laminar=re_lam,
-        re_turbulent=re_turb,
-        laminar=MockFrictionFactorModel(lam_value),
-        transient=MockFrictionFactorModel(trans_value),
-        turbulent=MockFrictionFactorModel(turb_value),
-    )
-    model_payload.pop("re")
-
-    def _assert_lambda_and_dlambda_dm(re, expected_val):
-        re = np.atleast_1d(re).astype(np.float64)
-        lambda_, dlambda_dm = model.compute_lambda_and_dlambda_dm(
-            **model_payload,
-            re=re,
-        )
-        np.testing.assert_allclose(lambda_, expected_val)
-        np.testing.assert_allclose(dlambda_dm, expected_val)
-
-    # test laminar re range: 0 < re <= re_lam
-    _assert_lambda_and_dlambda_dm(re=re_lam * 0.8, expected_val=lam_value)
-    _assert_lambda_and_dlambda_dm(re=re_lam, expected_val=lam_value)
-
-    # test transient re range: re_lam < re <= re_turb
-    _assert_lambda_and_dlambda_dm(re=re_lam + 1, expected_val=trans_value)
-    _assert_lambda_and_dlambda_dm(re=re_turb, expected_val=trans_value)
-
-    # test turbulent re range: re_turb < re
-    _assert_lambda_and_dlambda_dm(re=re_turb + 1, expected_val=turb_value)
-
-    re = np.array([2000, 3000, 5000])
-    model_payload = {k: np.ones_like(re) for k in model_payload}
-    expected_val = np.array([lam_value, trans_value, turb_value])
-    _assert_lambda_and_dlambda_dm(re=re, expected_val=expected_val)
-
-
-def test_regime_aware_friction_factor_model_incorrect_re_ranges():
-    """Ensure that constructing the model with invalid Re boundaries
-    (negative or reversed) raises a ValueError.
-    """
-    mock = MockFrictionFactorModel(42)
-    payload = {
-        "laminar": mock,
-        "transient": mock,
-        "turbulent": mock,
-    }
-
-    with pytest.raises(ValueError, match="Must have 0 < re_laminar < re_turbulent"):
-        fm.RegimeAwareFrictionFactorModel(re_laminar=-1, re_turbulent=4000, **payload)
-
-    with pytest.raises(ValueError, match="Must have 0 < re_laminar < re_turbulent"):
-        fm.RegimeAwareFrictionFactorModel(re_laminar=4000, re_turbulent=2000, **payload)
 
 
 def test_colebrook_convergence_failure(model_payload):

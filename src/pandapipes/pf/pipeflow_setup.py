@@ -211,7 +211,7 @@ def set_user_pf_options(net, reset=False, **kwargs):
 
 
 def init_options(net, **kwargs):
-    """Initializes physical and mathematical constants included in pandapipes. In addition, options for the nonlinear and time-dependent solver are also set.
+    r"""Initializes physical and mathematical constants included in pandapipes. In addition, options for the nonlinear and time-dependent solver are also set.
 
     Those are the options that can be set and their default values:
 
@@ -237,9 +237,8 @@ def init_options(net, **kwargs):
                 calculation of the barometric formula
 
         - **friction_model** (FrictionFactorModel): ``pp.Nikuradse()`` - The friction model\
-                used to compute the Darcy‑Weisbach friction factor :math:`\lambda`\
-                (e.g., ``pp.SwameeJain()``, ``pp.Colebrook()``, or\
-                ``pp.RegimeAwareFrictionFactorModel()``).
+                used to compute the Darcy‑Weisbach friction factor :math:`\lambda`.\
+                See :ref:`friction_factor_models` for the full list of built-in and custom options.
 
         - **alpha** (float): 1 - The step width for the Newton iterations. If the Newton steps \
                 shall be damped, **alpha** can be reduced. See also the **nonlinear_method** \
