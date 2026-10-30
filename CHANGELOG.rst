@@ -1,16 +1,16 @@
 Change Log
 =============
-[0.16.0] - 2026-10-16
+[0.x.x] - 20xx-xx-xx
 -------------------------------
 - [ADDED]
-  FrictionFactorModel protocol and RegimeAwareFrictionFactorModel.
-  Users can now implement their own friction factor models and pass them
-  to the pipeflow.  A regime‑aware model allows combining different
-  models for laminar, transient, and turbulent flow.
-
+  FrictionFactorModel protocol. Users can now implement their own friction factor models and pass them
+  to the pipeflow.
 - [CHANGED]
-  Friction model selection is now object‑based.  Passing a string
+  Friction model selection is now object‑based. Passing a string
   name (e.g. "colebrook") is still supported for backward compatibility.
+
+[0.16.0] - 2026-10-16
+-------------------------------
 - [FIXED] considering pump derivatives
 - [ADDED] architecture restructuring to enable a flexible creation of the jacobian matrix
 - [ADDED] heat-power-coupling controller
